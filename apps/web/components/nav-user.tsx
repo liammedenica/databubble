@@ -1,144 +1,95 @@
-"use client"
+"use client";
 
+import { useRouter } from "next/navigation";
+import type { User as SupabaseUser } from "@supabase/supabase-js";
 import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@workspace/ui/components/avatar"
+  DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem,
+  DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@workspace/ui/components/dropdown-menu";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@workspace/ui/components/dropdown-menu"
+  SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar,
+} from "@workspace/ui/components/sidebar";
 import {
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  useSidebar,
-} from "@workspace/ui/components/sidebar"
-import { EllipsisVerticalIcon, CircleUserRoundIcon, CreditCardIcon, BellIcon, LogOutIcon, UserRoundIcon, LogInIcon, UserRoundPlusIcon } from "lucide-react"
+  ChevronsUpDownIcon, BadgeCheckIcon, CreditCardIcon, LayoutGridIcon, LogOutIcon,
+} from "lucide-react";
+import { createClient } from "@/utils/supabase/client";
 
-export function NavUser({
-  user,
-}: {
-  user?: {
-    name: string
-    email: string
-    avatar: string
-  }
-}) {
-  const { isMobile } = useSidebar()
+const AVATAR_COLOR_HEX: Record<string, string> = {
+  blue: "#3b82f6", violet: "#7c3aed", indigo: "#4338ca",
+  rose: "#e11d48", teal: "#0d9488", orange: "#ea580c",
+};
 
-  if (!user) {
-    return (
-      <SidebarMenu>
-        <SidebarMenuItem>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <SidebarMenuButton size="lg" className="aria-expanded:bg-muted" />
-              }
-            >
-              <div className="flex size-8 items-center justify-center rounded-lg bg-blue-500">
-                <UserRoundIcon className="size-4 text-white" />
-              </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">Not signed in</span>
-                <span className="truncate text-xs text-muted-foreground">Create an account to save</span>
-              </div>
-              <EllipsisVerticalIcon className="ml-auto size-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              className="min-w-56"
-              side={isMobile ? "bottom" : "right"}
-              align="end"
-              sideOffset={4}
-            >
-              <DropdownMenuItem>
-                <LogInIcon />
-                Log in
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <UserRoundPlusIcon />
-                Create account
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </SidebarMenuItem>
-      </SidebarMenu>
-    )
-  }
+export function NavUser({ user }: { user: SupabaseUser }) {
+  const router = useRouter();
+  const { isMobile } = useSidebar();
+  const name    = user.user_metadata?.full_name ?? user.email ?? "Account";
+  const email   = user.email ?? "";
+  const initial = (name[0] ?? "?").toUpperCase();
+  const avatarBg = AVATAR_COLOR_HEX[user.user_metadata?.avatar_color ?? "blue"] ?? "#3b82f6";
+
+  const handleSignOut = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/");
+    router.refresh();
+  };
 
   return (
     <SidebarMenu>
       <SidebarMenuItem>
         <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <SidebarMenuButton size="lg" className="aria-expanded:bg-muted" />
-            }
-          >
-            <Avatar className="size-8 rounded-lg grayscale">
-              <AvatarImage src={user.avatar} alt={user.name} />
-              <AvatarFallback className="rounded-lg">CN</AvatarFallback>
-            </Avatar>
+          <DropdownMenuTrigger render={
+            <SidebarMenuButton size="lg" className="aria-expanded:bg-muted" />
+          }>
+            <span className="size-8 rounded-lg text-white text-sm font-semibold flex items-center justify-center shrink-0"
+              style={{ backgroundColor: avatarBg }}>{initial}</span>
             <div className="grid flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-medium">{user.name}</span>
-              <span className="truncate text-xs text-foreground/70">
-                {user.email}
-              </span>
+              <span className="truncate font-medium">{name}</span>
+              <span className="truncate text-xs text-muted-foreground">{email}</span>
             </div>
-            <EllipsisVerticalIcon className="ml-auto size-4" />
+            <ChevronsUpDownIcon className="ml-auto size-4" />
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            className="min-w-56"
+            className="w-60"
             side={isMobile ? "bottom" : "right"}
             align="end"
-            sideOffset={4}
-          >
+            sideOffset={4}>
             <DropdownMenuGroup>
               <DropdownMenuLabel className="p-0 font-normal">
                 <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                  <Avatar className="size-8">
-                    <AvatarImage src={user.avatar} alt={user.name} />
-                    <AvatarFallback className="rounded-lg">CN</AvatarFallback>
-                  </Avatar>
+                  <span className="size-8 rounded-lg text-white text-sm font-semibold flex items-center justify-center shrink-0"
+                    style={{ backgroundColor: avatarBg }}>{initial}</span>
                   <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-medium">{user.name}</span>
-                    <span className="truncate text-xs text-muted-foreground">
-                      {user.email}
-                    </span>
+                    <span className="truncate font-medium">{name}</span>
+                    <span className="truncate text-xs text-muted-foreground">{email}</span>
                   </div>
                 </div>
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <CircleUserRoundIcon />
-                Account
+              <DropdownMenuItem onClick={() => router.push("/dashboards")} className="cursor-pointer gap-2.5">
+                <LayoutGridIcon className="size-3.5 text-muted-foreground" />
+                <span>My Dashboards</span>
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <CreditCardIcon />
-                Billing
+              <DropdownMenuItem onClick={() => router.push("/account")} className="cursor-pointer gap-2.5">
+                <BadgeCheckIcon className="size-3.5 text-muted-foreground" />
+                <span>Account</span>
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <BellIcon />
-                Notifications
+              <DropdownMenuItem onClick={() => router.push("/billing")} className="cursor-pointer gap-2.5">
+                <CreditCardIcon className="size-3.5 text-muted-foreground" />
+                <span>Billing</span>
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <LogOutIcon />
-              Log out
+            <DropdownMenuItem onClick={handleSignOut}
+              className="cursor-pointer gap-2.5 text-destructive focus:text-destructive">
+              <LogOutIcon className="size-3.5" />
+              <span>Sign out</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
     </SidebarMenu>
-  )
+  );
 }

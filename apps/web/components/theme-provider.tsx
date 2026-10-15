@@ -15,6 +15,7 @@ function ThemeProvider({
       disableTransitionOnChange
       {...props}
     >
+      <ThemeDataAttr />
       <ThemeHotkey />
       {children}
     </NextThemesProvider>
@@ -32,6 +33,16 @@ function isTypingTarget(target: EventTarget | null) {
     target.tagName === "TEXTAREA" ||
     target.tagName === "SELECT"
   )
+}
+
+function ThemeDataAttr() {
+  const { resolvedTheme } = useTheme()
+  React.useEffect(() => {
+    const root = document.documentElement
+    if (resolvedTheme === "dark") root.setAttribute("data-theme", "dark")
+    else root.removeAttribute("data-theme")
+  }, [resolvedTheme])
+  return null
 }
 
 function ThemeHotkey() {
