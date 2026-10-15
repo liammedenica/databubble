@@ -109,6 +109,9 @@ export function NavCharts() {
                           e.dataTransfer.setData("application/x-databubble-tile", type);
                           e.dataTransfer.effectAllowed = "copy";
                         }}
+                        onClick={() => {
+                          window.dispatchEvent(new CustomEvent("sandbox-add-chart", { detail: { type } }));
+                        }}
                         className="group/row relative flex items-center gap-2.5 pl-2 pr-2 h-10 rounded-lg cursor-grab active:cursor-grabbing
                           select-none text-foreground/90 hover:text-foreground
                           transition-[background-color,transform] duration-200 ease-out

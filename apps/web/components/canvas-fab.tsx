@@ -4,12 +4,17 @@ import { useEffect, useRef, useState } from "react";
 import { MinusIcon, PlusIcon, SparklesIcon, SendHorizonalIcon, XIcon } from "lucide-react";
 import { FloatingButtonGroup } from "@/components/arc/floating-button-group/floating-button-group";
 
-const MIN_ZOOM = 0.5;
-const MAX_ZOOM = 2;
+const MIN_ZOOM = 0.25;
+const MAX_ZOOM = 2.5;
 const STEP = 0.1;
 
-export function CanvasFab({ onZoomChange }: { onZoomChange?: (zoom: number) => void }) {
-  const [zoom, setZoom] = useState(1);
+export function CanvasFab({
+  zoom,
+  onZoomChange,
+}: {
+  zoom: number;
+  onZoomChange: (z: number) => void;
+}) {
   const [chatOpen, setChatOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const panelRef = useRef<HTMLDivElement>(null);
@@ -17,8 +22,7 @@ export function CanvasFab({ onZoomChange }: { onZoomChange?: (zoom: number) => v
 
   const setZoomTo = (next: number) => {
     const clamped = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(next * 100) / 100));
-    setZoom(clamped);
-    onZoomChange?.(clamped);
+    onZoomChange(clamped);
   };
 
   useEffect(() => {
@@ -128,7 +132,7 @@ export function CanvasFab({ onZoomChange }: { onZoomChange?: (zoom: number) => v
             {
               id: "zoom-value",
               label: `${percent}%`,
-              reserveLabels: ["200%"],
+              reserveLabels: ["250%"],
               onSelect: () => setZoomTo(1),
             },
             {

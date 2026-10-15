@@ -1,8 +1,13 @@
 ﻿"use client";
 
-import { useRef, useState, useLayoutEffect } from "react";
+import { forwardRef, useImperativeHandle, useRef, useState, useLayoutEffect, useEffect } from "react";
 import { flushSync } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
+import {
+  LineChart as LineChartIcon, BarChart3, PieChart as PieChartIcon, TrendingUp, Hash,
+  Gauge as GaugeIcon, LayoutGrid, Calendar, LayoutDashboard, AreaChart as AreaChartIcon,
+  PlusIcon, XIcon,
+} from "lucide-react";
 import { LineChart } from "@/components/arc/line-chart/line-chart";
 import { BarChart } from "@/components/arc/bar-chart/bar-chart";
 import { DonutChart, type DonutChartDatum } from "@/components/arc/donut-chart/donut-chart";
@@ -378,6 +383,12 @@ const CHART_LABELS: Record<ChartId, string> = {
   heatmap: "Activity Heatmap", treemap: "Treemap", brush: "Brush Chart",
 };
 
+const CHART_ICONS: Record<ChartId, React.ComponentType<{ className?: string }>> = {
+  line: LineChartIcon, bar: BarChart3, donut: PieChartIcon, sparkline: TrendingUp,
+  metric: Hash, gauge: GaugeIcon, waffle: LayoutGrid,
+  heatmap: Calendar, treemap: LayoutDashboard, brush: AreaChartIcon,
+};
+
 const SNAP = 20;
 const GAP  = 16; // uniform gap between all cards, used for both drop and resize collision
 const ALL_IDS: ChartId[] = ["line", "bar", "donut", "sparkline", "metric", "gauge", "waffle", "heatmap", "treemap", "brush"];
@@ -402,7 +413,12 @@ const INITIAL_POSITIONS: Record<ChartId, {x:number;y:number}> = {
 };
 
 // ── DashboardSandbox ───────────────────────────────────────────────────────
-export function DashboardSandbox() {
+export type DashboardSandboxHandle = { addChart: (id: ChartId) => void };
+
+export const DashboardSandbox = forwardRef<DashboardSandboxHandle, {
+  hidePicker?: boolean;
+  initialVisible?: ChartId[];
+}>(function DashboardSandbox({ hidePicker = false, initialVisible }, ref) {
   const [selected, setSelected] = useState<ChartId | null>(null);
   const resizingRef = useRef(false);
 
@@ -530,6 +546,88 @@ export function DashboardSandbox() {
   const [positions,  setPositions]  = useState<Record<ChartId, {x:number;y:number}>>(INITIAL_POSITIONS);
   const [zOrder,     setZOrder]     = useState<ChartId[]>([...ALL_IDS]);
   const [draggingId, setDraggingId] = useState<ChartId | null>(null);
+  const [visible,    setVisible]    = useState<Set<ChartId>>(() => new Set(initialVisible ?? []));
+  const stageRef = useRef<HTMLDivElement>(null);
+
+  function clampToStage(x: number, y: number, w: number, h: number) {
+    const stage = stageRef.current;
+    if (!stage) return { x: Math.max(0, x), y: Math.max(0, y) };
+    const maxX = Math.max(0, stage.clientWidth  - w);
+    const maxY = Math.max(0, stage.clientHeight - h);
+    return { x: Math.max(0, Math.min(maxX, x)), y: Math.max(0, Math.min(maxY, y)) };
+  }
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; id: ChartId } | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Dismiss context menu on outside click or Escape.
+  useLayoutEffect(() => {
+    if (!contextMenu) return;
+    const onDown = (e: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        setContextMenu(null);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setContextMenu(null); };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [contextMenu]);
+
+  function openContextMenu(e: React.MouseEvent, id: ChartId) {
+    e.preventDefault();
+    setSelected(id);
+    setZOrder(prev => [...prev.filter(x => x !== id), id]);
+    const PANEL_W = 260;
+    const PANEL_H_MAX = 520;
+    const x = e.clientX + PANEL_W + 8 > window.innerWidth ? Math.max(8, e.clientX - PANEL_W) : e.clientX + 4;
+    const y = e.clientY + PANEL_H_MAX + 8 > window.innerHeight ? Math.max(8, window.innerHeight - PANEL_H_MAX - 8) : e.clientY + 4;
+    setContextMenu({ x, y, id });
+  }
+
+  function addChart(id: ChartId) {
+    if (visible.has(id)) {
+      // Already on canvas — select + bring to front for feedback.
+      setSelected(id);
+      setZOrder(prev => [...prev.filter(x => x !== id), id]);
+      return;
+    }
+    // Place at the initial position but clamped to the stage. When embedded in
+    // the smaller dashboard sheet, this also prevents tiles landing off-screen.
+    const initial = INITIAL_POSITIONS[id];
+    const stage = stageRef.current;
+    // Approximate tile size with a conservative default so we never overshoot.
+    const APPROX = 500;
+    const clamped = stage
+      ? { x: Math.max(0, Math.min(stage.clientWidth - APPROX, initial.x)), y: Math.max(0, Math.min(stage.clientHeight - 200, initial.y)) }
+      : initial;
+    setPositions(prev => ({ ...prev, [id]: clamped }));
+    setVisible(prev => { const next = new Set(prev); next.add(id); return next; });
+    setZOrder(prev => [...prev.filter(x => x !== id), id]);
+    setSelected(id);
+  }
+
+  function removeChart(id: ChartId) {
+    setVisible(prev => { const next = new Set(prev); next.delete(id); return next; });
+    setSelected(prev => prev === id ? null : prev);
+  }
+
+  // External handle so the dashboard shell can drop tiles via sidebar drag.
+  useImperativeHandle(ref, () => ({ addChart }), [addChart]);
+
+  // Also listen for a global event (back-compat for drag events the dashboard sidebar fires).
+  useEffect(() => {
+    const SIDEBAR_IDS = new Set<ChartId>(["line", "bar", "donut", "sparkline", "metric", "gauge", "waffle", "heatmap", "treemap", "brush"]);
+    const onAddEvent = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { type?: string } | undefined;
+      const type = detail?.type;
+      if (type && SIDEBAR_IDS.has(type as ChartId)) addChart(type as ChartId);
+    };
+    window.addEventListener("sandbox-add-chart", onAddEvent as EventListener);
+    return () => window.removeEventListener("sandbox-add-chart", onAddEvent as EventListener);
+  }, [addChart]);
   const positionsRef = useRef(positions);
   positionsRef.current = positions;
   const cardRefs = useRef<Partial<Record<ChartId, HTMLDivElement | null>>>({});
@@ -965,10 +1063,14 @@ export function DashboardSandbox() {
       }
 
       const dx = ev.clientX - startX, dy = ev.clientY - startY;
-      const snappedX = Math.max(0, Math.round((startPos.x + dx) / SNAP) * SNAP);
-      const snappedY = Math.max(0, Math.round((startPos.y + dy) / SNAP) * SNAP);
+      const rawX = Math.round((startPos.x + dx) / SNAP) * SNAP;
+      const rawY = Math.round((startPos.y + dy) / SNAP) * SNAP;
       const dw = el?.offsetWidth  ?? 0;
       const dh = el?.offsetHeight ?? 0;
+      // Clamp release position so tiles can't drift past the sheet edge.
+      const clamped = clampToStage(rawX, rawY, dw, dh);
+      const snappedX = clamped.x;
+      const snappedY = clamped.y;
 
       const hasOverlap = ALL_IDS.filter(other => other !== id).some(other => {
         const otherEl = cardRefs.current[other];
@@ -1063,7 +1165,51 @@ export function DashboardSandbox() {
 
   return (
     <>
-      <div className="flex-1 overflow-auto p-5 bg-muted/20"
+      {/* Chart picker (left) — hidden when embedded inside the /dashboard shell */}
+      {!hidePicker && (
+      <aside className="w-56 shrink-0 border-r bg-card flex flex-col overflow-hidden">
+        <div className="px-4 py-3 border-b shrink-0">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+            Charts
+          </p>
+          <p className="text-[11px] text-muted-foreground/70 mt-0.5">Click to add to canvas</p>
+        </div>
+        <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
+          {ALL_IDS.map(id => {
+            const Icon = CHART_ICONS[id];
+            const onCanvas = visible.has(id);
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => addChart(id)}
+                className={`group w-full flex items-center gap-2.5 pl-2 pr-2 h-10 rounded-lg
+                  select-none transition-colors
+                  ${onCanvas
+                    ? "bg-blue-500/10 text-foreground hover:bg-blue-500/15"
+                    : "text-foreground/80 hover:text-foreground hover:bg-muted"}`}
+              >
+                <span className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center
+                  ${onCanvas ? "bg-blue-500/15 text-blue-500" : "bg-muted text-muted-foreground group-hover:text-foreground"}`}>
+                  <Icon className="w-4 h-4" />
+                </span>
+                <span className="text-[13px] font-medium truncate flex-1 text-left">
+                  {CHART_LABELS[id]}
+                </span>
+                {onCanvas ? (
+                  <span className="text-[10px] text-blue-500 font-semibold">ON</span>
+                ) : (
+                  <PlusIcon className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </aside>
+      )}
+
+      <div className={`flex-1 p-5 bg-muted/20
+          ${hidePicker ? "overflow-hidden" : "overflow-auto"}`}
         onPointerDown={e => { if (e.target === e.currentTarget) setSelected(null); }}>
         {(() => {
           function renderCard(id: ChartId, isDragging: boolean): React.ReactNode {
@@ -1295,13 +1441,39 @@ export function DashboardSandbox() {
 
                     return null;
           }
+          const visibleIds = ALL_IDS.filter(id => visible.has(id));
           return (
-            <div className="relative" style={{ minWidth: 1620, minHeight: 1620 }}
+            <div ref={stageRef} className="relative"
+              style={hidePicker ? { width: "100%", height: "100%" } : { minWidth: 1620, minHeight: 1620 }}
               onPointerDown={e => { if (e.target === e.currentTarget) setSelected(null); }}>
-              {ALL_IDS.map(id => (
+              {visibleIds.length === 0 && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="text-center">
+                    <div className="mx-auto mb-4 inline-flex items-center justify-center size-14 rounded-2xl border-2 border-dashed border-border/70">
+                      <PlusIcon className="w-6 h-6 text-muted-foreground" />
+                    </div>
+                    <p className="text-sm text-muted-foreground">Click a chart on the left to add it</p>
+                  </div>
+                </div>
+              )}
+              {visibleIds.map(id => (
                 <div key={id} ref={el => { cardRefs.current[id] = el; }} style={{ position: "absolute", left: positions[id].x, top: positions[id].y, zIndex: zOrder.indexOf(id) + 1 }}
-                  onPointerDown={e => { if (e.button === 0) startDrag(e, id); }}>
+                  onPointerDown={e => { if (e.button === 0) startDrag(e, id); }}
+                  onContextMenu={e => openContextMenu(e, id)}>
                   {renderCard(id, draggingId === id)}
+                  {selected === id && (
+                    <button
+                      type="button"
+                      onPointerDown={e => e.stopPropagation()}
+                      onClick={e => { e.stopPropagation(); removeChart(id); }}
+                      title="Remove from canvas"
+                      className="absolute -top-2.5 -right-2.5 size-6 rounded-full bg-background border border-border shadow-sm
+                        text-muted-foreground hover:text-foreground hover:border-blue-500/60 hover:bg-sidebar-accent
+                        transition flex items-center justify-center z-30"
+                    >
+                      <XIcon className="w-3.5 h-3.5" strokeWidth={2.25} />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -1309,15 +1481,31 @@ export function DashboardSandbox() {
         })()}
       </div>
 
-      {/* Settings panel */}
-      {selected && (
-        <aside className="w-60 shrink-0 border-l bg-card flex flex-col overflow-hidden">
-          <div className="px-4 py-3 border-b shrink-0">
+      {/* Right-click settings popover */}
+      {contextMenu && (() => {
+        const selected = contextMenu.id;
+        return (
+        <div
+          ref={panelRef}
+          style={{ position: "fixed", left: contextMenu.x, top: contextMenu.y, width: 260, maxHeight: 520, zIndex: 100 }}
+          className="rounded-xl border border-border bg-card shadow-2xl shadow-black/20 ring-1 ring-black/5 overflow-hidden flex flex-col
+            animate-in fade-in-0 zoom-in-95 duration-150"
+        >
+          <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b shrink-0">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
               {CHART_LABELS[selected]}
             </p>
+            <button
+              type="button"
+              onClick={() => setContextMenu(null)}
+              className="size-6 inline-flex items-center justify-center rounded-md text-muted-foreground
+                hover:text-foreground hover:bg-muted transition-colors"
+              title="Close"
+            >
+              <XIcon className="w-3.5 h-3.5" />
+            </button>
           </div>
-          <div className="flex-1 overflow-y-auto px-4 pb-6">
+          <div className="flex-1 overflow-y-auto px-4 pb-4">
 
             {selected === "line" && (
               <>
@@ -1573,8 +1761,9 @@ export function DashboardSandbox() {
             )}
 
           </div>
-        </aside>
-      )}
+        </div>
+        );
+      })()}
     </>
   );
-}
+});

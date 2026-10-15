@@ -20,18 +20,39 @@ packages/ui/       Shared components (@workspace/ui/*)
 | File | Purpose |
 |------|---------|
 | `apps/web/app/page.tsx` | Landing page — hero, pricing, features, auth modal, create dialog |
-| `apps/web/app/dashboard/page.tsx` | Server component — fetches CSV, analyzes columns, renders canvas |
+| `apps/web/app/dashboard/page.tsx` | Server component — fetches user, renders `<DashboardShell>` |
+| `apps/web/app/dashboard/dashboard-shell.tsx` | Client wrapper — SidebarProvider + AppSidebar + topbar + sheet frame + sandbox + FAB + toast host |
 | `apps/web/app/dashboards/page.tsx` | My Dashboards — card grid with mini SVG chart previews, share settings |
 | `apps/web/app/account/page.tsx` | Account — avatar color picker, name edit, AI usage bar, delete account |
-| `apps/web/components/dashboard-grid.tsx` | Main client component — all tile types, dialogs, drag-drop canvas |
-| `apps/web/components/app-sidebar.tsx` | Sidebar — chart type picker (draggable items), data columns list |
+| `apps/web/app/playground/dashboard-sandbox.tsx` | **Single source of truth for tile logic.** 10 chart types with full state + render + settings + swap/push/nudge collision. Rendered standalone at /playground; embedded at /dashboard with `hidePicker` |
+| `apps/web/components/dashboard-sheet-frame.tsx` | Grey pannable workspace + fixed 1800×1120 sheet. Owns pan state; zoom controlled by parent via props |
+| `apps/web/components/dashboard-topbar.tsx` | Breadcrumb + InlineEdit name + refresh + Share/Save ButtonGroup + ThemeSwitch |
+| `apps/web/components/canvas-fab.tsx` | Floating button group bottom-right — zoom −/%/+ + Ask AI (chat shell) |
+| `apps/web/components/toast-host.tsx` | Bottom-center toast slot driven by `{id,title,description}` state |
+| `apps/web/components/app-sidebar.tsx` | Dashboard sidebar — brand + search + Recent + Charts (drag + click adds to canvas) + Data + user |
+| `apps/web/components/nav-charts.tsx` | Chart picker rows: `onDragStart` + `onClick` both dispatch `sandbox-add-chart` window event |
 | `apps/web/components/user-menu.tsx` | Shared UserMenu — hover dropdown, avatar, theme toggle, nav links, sign out |
 | `apps/web/components/create-dashboard-dialog.tsx` | Shared create dialog — used on landing + dashboards pages |
+| `apps/web/components/arc/*` | uiarc components (shadcn registry): charts, inline-edit, button-group, floating-button-group, breadcrumb, theme-switch, toast, tooltip, hover-card, expanding-search |
 | `apps/web/lib/sheets.ts` | `extractSheetId` + `fetchSheetData` (Google Sheets CSV, no API key) |
 | `apps/web/lib/analyze.ts` | Column type detection (`date / number / category / text / id`) |
-| `apps/web/lib/demo-data.ts` | Deterministic fake e-commerce dataset + `buildDemoLayout(canvasW)` |
-| `apps/web/lib/generate-layout.ts` | Haiku-powered layout generation — prompt, validation, trend computation |
 | `apps/web/lib/palettes.ts` | 6 color palettes (Violet default) + `buildCustomPalette` |
+
+## Dashboard canvas architecture (as of 2026-10-15)
+
+The `/dashboard` middle area is a **pannable grey workspace with a fixed-size sheet floating in it**. The sheet embeds the `/playground` sandbox for all tile behaviour — don't rebuild per-tile components from scratch; always extract/embed.
+
+- `<DashboardSheetFrame zoom onZoomChange>` — grey dot-grid workspace, 1800×1120 sheet centered. Pan via middle-click or empty-drag; zoom via Ctrl/⌘+scroll (cursor-anchored) or the FAB `−/%/+` controls. Default zoom **0.7**; auto-fit only shrinks further if window is smaller.
+- `<DashboardSandbox hidePicker />` — the embedded sandbox. `hidePicker` collapses its own left picker; the dashboard's app sidebar is the chart picker instead. The sandbox listens for `window` `sandbox-add-chart` events (and exposes `addChart` via `useImperativeHandle` on its ref).
+- `nav-charts.tsx` rows dispatch `new CustomEvent("sandbox-add-chart", { detail: { type } })` on **click AND on drop** — the sheet-frame catches HTML5 drops and re-fires the same event.
+- Sandbox stage is sized to the sheet exactly when embedded (no 1620px minimum), overflow-hidden, and **drag release is clamped to stage bounds** via `clampToStage` so tiles can't drift off the sheet edge.
+- One instance per chart type on canvas (sandbox's state hooks are shared per type). Splitting into per-tile components is a multi-day refactor — only do it if users explicitly ask for multiple instances of the same type.
+
+## Tech stack gotchas
+
+**UI library**: Base UI (`@base-ui/react`), NOT Radix. Shadcn was inited with Nova preset.
+
+**Base UI HoverCard**: wraps `PreviewCard` from `@base-ui/react/preview-card`. Does NOT accept `openDelay`/`closeDelay` (those are Radix props). Base UI handles hover timing internally.
 
 ## Tech stack gotchas
 
