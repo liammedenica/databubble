@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { InfoIcon } from "lucide-react";
+import { HoverCard } from "@/components/arc/hover-card/hover-card";
 
 const SHEET_W = 1800;
 const SHEET_H = 1120;
@@ -25,16 +27,7 @@ export function DashboardSheetFrame({
 
   const panning = useRef<null | { sx: number; sy: number; px: number; py: number }>(null);
 
-  // On first mount, only shrink the default zoom further if the sheet doesn't
-  // even fit at the explicit initial zoom supplied by the parent.
-  useEffect(() => {
-    const el = workspaceRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const needed = Math.min((rect.width - 80) / SHEET_W, (rect.height - 80) / SHEET_H);
-    if (needed < zoom && needed > MIN_ZOOM) onZoomChange(Math.round(needed * 100) / 100);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Default zoom comes from the parent (0.7). No auto-fit: the user can zoom out manually if they want more grey around the sheet.
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     const t = e.target as HTMLElement;
@@ -92,7 +85,7 @@ export function DashboardSheetFrame({
 
   const resetView = useCallback(() => {
     setPan({ x: 0, y: 0 });
-    onZoomChange(1);
+    onZoomChange(0.7);
   }, [onZoomChange]);
 
   return (
@@ -123,23 +116,76 @@ export function DashboardSheetFrame({
       </div>
 
       {/* Hints */}
-      <div className="absolute bottom-3 left-4 pointer-events-none text-[11px] text-muted-foreground/70 select-none">
-        Drag empty space to pan · Ctrl/⌘ + scroll to zoom
-      </div>
+      <ShortcutsHint />
 
-      {/* Reset view pill */}
-      {(pan.x !== 0 || pan.y !== 0 || zoom !== 1) && (
+      {/* Reset view */}
+      {(pan.x !== 0 || pan.y !== 0 || zoom !== 0.7) && (
         <button
           type="button"
           data-interactive
           onClick={resetView}
           className="absolute top-3 right-3 inline-flex items-center gap-1.5 h-7 px-2.5
             rounded-md border border-border/60 bg-background/80 backdrop-blur text-xs font-medium
-            text-foreground hover:bg-sidebar-accent/80 transition-colors shadow-sm"
+            text-foreground hover:bg-sidebar-accent/80 transition-colors shadow-sm
+            animate-in fade-in-0 zoom-in-95 slide-in-from-top-1 duration-200 ease-out origin-top-right"
         >
           Reset view
         </button>
       )}
+    </div>
+  );
+}
+
+const SHORTCUTS: { keys: string[]; label: string }[] = [
+  { keys: ["Drag"],         label: "Pan canvas" },
+  { keys: ["Ctrl", "Scroll"], label: "Zoom" },
+  { keys: ["Ctrl", "S"],    label: "Save" },
+  { keys: ["Ctrl", "Z"],    label: "Undo" },
+  { keys: ["Ctrl", "C"],    label: "Copy tile" },
+  { keys: ["Ctrl", "V"],    label: "Paste tile" },
+  { keys: ["D"],            label: "Toggle theme" },
+];
+
+function ShortcutsHint() {
+  return (
+    <div className="absolute bottom-3 left-4" data-interactive>
+      <HoverCard
+        side="top"
+        align="start"
+        openDelay={120}
+        content={
+          <div className="w-60">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-3">
+              Shortcuts
+            </p>
+            <ul className="space-y-1.5">
+              {SHORTCUTS.map(s => (
+                <li key={s.label} className="flex items-center justify-between gap-3 text-xs">
+                  <span className="text-foreground/80">{s.label}</span>
+                  <span className="flex items-center gap-1 shrink-0">
+                    {s.keys.map((k, i) => (
+                      <kbd key={i} className="inline-flex items-center justify-center h-5 min-w-[1.25rem] px-1.5
+                        rounded border border-border bg-muted text-[10px] font-medium text-foreground/80">
+                        {k}
+                      </kbd>
+                    ))}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        }
+      >
+        <button
+          type="button"
+          aria-label="Keyboard shortcuts"
+          className="inline-flex items-center justify-center size-7 rounded-full
+            border border-border/60 bg-background/80 backdrop-blur text-muted-foreground
+            hover:text-foreground hover:bg-sidebar-accent/80 transition-colors shadow-sm"
+        >
+          <InfoIcon className="w-3.5 h-3.5" strokeWidth={2.25} />
+        </button>
+      </HoverCard>
     </div>
   );
 }

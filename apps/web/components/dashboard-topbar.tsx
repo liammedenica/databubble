@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/components/theme-provider";
 import {
   RefreshCwIcon, Share2Icon, SaveIcon, CheckIcon, ChevronRightIcon,
 } from "lucide-react";
@@ -84,7 +84,7 @@ export function DashboardTopbar({
         items={[{ label: "My Dashboards", href: "/dashboards" }]}
       />
 
-      <ChevronRightIcon className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={2} />
+      <ChevronRightIcon className="w-3.5 h-3.5 text-muted-foreground mx-1.5" strokeWidth={2} />
 
       <div
         className="min-w-0 max-w-[22rem] flex items-center font-semibold"

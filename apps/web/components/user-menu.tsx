@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { useTheme } from "next-themes"
+import { useTheme } from "@/components/theme-provider"
 import { LayoutGrid, User, CreditCard, LogOut, Sun, Moon } from "lucide-react"
 import type { User as SupabaseUser } from "@supabase/supabase-js"
 import {

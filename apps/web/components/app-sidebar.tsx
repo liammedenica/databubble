@@ -7,7 +7,6 @@ import {
   SidebarSeparator,
 } from "@workspace/ui/components/sidebar";
 import { BrandHeader } from "@/components/brand-header";
-import { NavSearch } from "@/components/nav-search";
 import { NavRecentDashboards } from "@/components/nav-recent-dashboards";
 import { NavCharts } from "@/components/nav-charts";
 import { NavData } from "@/components/nav-data";
@@ -26,7 +25,6 @@ export function AppSidebar({
       </SidebarHeader>
       <SidebarSeparator className="mx-2 bg-sidebar-border/60" />
       <SidebarContent>
-        <NavSearch />
         <NavRecentDashboards />
         <NavCharts />
         <NavData />

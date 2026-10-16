@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { useTheme } from "next-themes"
+import { useTheme } from "@/components/theme-provider"
 import {
   Zap, LayoutGrid, Palette, Sparkles,
   Share2, SlidersHorizontal, BarChart2, Check, ChevronDown, X, Settings,

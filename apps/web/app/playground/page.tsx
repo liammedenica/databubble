@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { DashboardSandbox } from "./dashboard-sandbox";
 import { AnimatePresence, motion } from "motion/react";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/components/theme-provider";
 import { LineChart } from "@/components/arc/line-chart/line-chart";
 import { BarChart } from "@/components/arc/bar-chart/bar-chart";
 import { Sparkline } from "@/components/arc/sparkline/sparkline";

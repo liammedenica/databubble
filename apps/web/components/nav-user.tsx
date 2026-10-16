@@ -14,18 +14,12 @@ import {
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 
-const AVATAR_COLOR_HEX: Record<string, string> = {
-  blue: "#3b82f6", violet: "#7c3aed", indigo: "#4338ca",
-  rose: "#e11d48", teal: "#0d9488", orange: "#ea580c",
-};
-
 export function NavUser({ user }: { user: SupabaseUser }) {
   const router = useRouter();
   const { isMobile } = useSidebar();
   const name    = user.user_metadata?.full_name ?? user.email ?? "Account";
   const email   = user.email ?? "";
   const initial = (name[0] ?? "?").toUpperCase();
-  const avatarBg = AVATAR_COLOR_HEX[user.user_metadata?.avatar_color ?? "blue"] ?? "#3b82f6";
 
   const handleSignOut = async () => {
     const supabase = createClient();
@@ -41,8 +35,7 @@ export function NavUser({ user }: { user: SupabaseUser }) {
           <DropdownMenuTrigger render={
             <SidebarMenuButton size="lg" className="aria-expanded:bg-muted" />
           }>
-            <span className="size-8 rounded-lg text-white text-sm font-semibold flex items-center justify-center shrink-0"
-              style={{ backgroundColor: avatarBg }}>{initial}</span>
+            <span className="size-8 rounded-lg bg-brand text-white text-sm font-semibold flex items-center justify-center shrink-0">{initial}</span>
             <div className="grid flex-1 text-left text-sm leading-tight">
               <span className="truncate font-medium">{name}</span>
               <span className="truncate text-xs text-muted-foreground">{email}</span>
@@ -57,8 +50,7 @@ export function NavUser({ user }: { user: SupabaseUser }) {
             <DropdownMenuGroup>
               <DropdownMenuLabel className="p-0 font-normal">
                 <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                  <span className="size-8 rounded-lg text-white text-sm font-semibold flex items-center justify-center shrink-0"
-                    style={{ backgroundColor: avatarBg }}>{initial}</span>
+                  <span className="size-8 rounded-lg bg-brand text-white text-sm font-semibold flex items-center justify-center shrink-0">{initial}</span>
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-medium">{name}</span>
                     <span className="truncate text-xs text-muted-foreground">{email}</span>

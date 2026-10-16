@@ -32,12 +32,6 @@ const DEMO_FIELDS: DataField[] = [
 const FIELD_ICONS: Record<FieldKind, React.ComponentType<{ className?: string }>> = {
   number: Calculator, date: CalendarDays, category: Grid, text: TextCursor,
 };
-const FIELD_CHIP: Record<FieldKind, string> = {
-  number:   "bg-brand/10 text-brand",
-  date:     "bg-emerald-500/10 text-emerald-500",
-  category: "bg-amber-500/10 text-amber-500",
-  text:     "bg-rose-500/10 text-rose-500",
-};
 
 export function NavData({ fields = DEMO_FIELDS }: { fields?: DataField[] }) {
   const { state } = useSidebar();
@@ -48,15 +42,15 @@ export function NavData({ fields = DEMO_FIELDS }: { fields?: DataField[] }) {
     <SidebarGroup>
       <SidebarMenu>
         <Collapsible open={open} onOpenChange={setOpen} className="group/collapsible" render={<SidebarMenuItem />}>
-          <CollapsibleTrigger render={<SidebarMenuButton tooltip="Data"
-            className="font-semibold group-data-[collapsible=icon]:[&_svg]:size-5" />}>
-            <DatabaseIcon strokeWidth={2.25} />
+          <CollapsibleTrigger render={<SidebarMenuButton tooltip="Data" />}>
+            <DatabaseIcon className="group-data-open/collapsible:text-brand transition-colors" />
             <span>Data</span>
-            <span className="ml-auto mr-1 text-[10px] text-muted-foreground">{fields.length}</span>
-            <ChevronRightIcon className="transition-transform duration-200 group-data-open/collapsible:rotate-90" />
+            <ChevronRightIcon className="ml-auto transition-transform duration-200 group-data-open/collapsible:rotate-90" />
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <div className="pt-1.5 space-y-0.5">
+            <div className="relative mx-3.5 translate-x-px pl-2.5 py-0.5
+              before:absolute before:left-0 before:top-3.5 before:bottom-11 before:w-px before:bg-brand/50 dark:before:bg-brand/80
+              group-data-[collapsible=icon]:hidden">
               {fields.map(f => {
                 const Icon = FIELD_ICONS[f.kind];
                 return (
@@ -66,21 +60,20 @@ export function NavData({ fields = DEMO_FIELDS }: { fields?: DataField[] }) {
                       e.dataTransfer.setData("application/x-databubble-field", f.key);
                       e.dataTransfer.effectAllowed = "copy";
                     }}
-                    className="group flex items-center gap-2.5 pl-2 pr-2 h-10 rounded-lg cursor-grab active:cursor-grabbing
-                      select-none text-foreground/90 hover:text-foreground hover:bg-sidebar-accent/70 transition-colors">
-                    <span className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${FIELD_CHIP[f.kind]}`}>
-                      <Icon className="w-3.5 h-3.5" />
-                    </span>
-                    <span className="text-[13px] font-medium truncate flex-1">{f.label}</span>
-                    <span className="text-[10px] text-muted-foreground/70 truncate max-w-[72px] text-right">
+                    className="group/row flex items-center gap-2 pl-2 pr-2 h-7 rounded-md cursor-grab active:cursor-grabbing
+                      select-none text-sm text-sidebar-foreground/80 hover:text-sidebar-foreground
+                      hover:bg-sidebar-accent/70 transition-colors">
+                    <Icon className="w-4 h-4 shrink-0 text-muted-foreground group-hover/row:text-brand transition-colors" />
+                    <span className="truncate flex-1">{f.label}</span>
+                    <span className="text-[11px] text-muted-foreground/70 truncate max-w-[72px] text-right">
                       {f.sample}
                     </span>
                   </div>
                 );
               })}
               <button type="button" disabled
-                className="mt-2 w-full flex items-center justify-center gap-1.5 h-9 rounded-lg border border-dashed border-border
-                  text-xs text-muted-foreground hover:border-brand/50 hover:text-brand transition-colors
+                className="mt-1.5 w-full flex items-center justify-center gap-1.5 h-8 rounded-md border border-dashed border-border
+                  text-xs text-muted-foreground hover:border-foreground/40 hover:text-foreground transition-colors
                   disabled:opacity-60 disabled:cursor-not-allowed">
                 <PlusIcon className="w-3 h-3" /> Connect source
               </button>

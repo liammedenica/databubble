@@ -20,10 +20,41 @@ export function CanvasFab({
   const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  const fbgRef = useRef<HTMLDivElement>(null);
+  const zoomInputRef = useRef<HTMLInputElement>(null);
+  const [editingZoom, setEditingZoom] = useState(false);
+  const [zoomInput, setZoomInput] = useState("");
+  const [zoomRect, setZoomRect] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
+
   const setZoomTo = (next: number) => {
     const clamped = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(next * 100) / 100));
     onZoomChange(clamped);
   };
+
+  const startZoomEdit = () => {
+    const buttons = fbgRef.current?.querySelectorAll<HTMLButtonElement>("button[data-fbg-item]");
+    const el = buttons?.[1]; // zoom-value is the second action button
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    setZoomRect({ left: r.left, top: r.top, width: r.width, height: r.height });
+    setZoomInput(String(Math.round(zoom * 100)));
+    setEditingZoom(true);
+  };
+
+  const commitZoomEdit = () => {
+    const n = parseFloat(zoomInput.replace(/[^0-9.]/g, ""));
+    if (Number.isFinite(n) && n > 0) setZoomTo(n / 100);
+    setEditingZoom(false);
+  };
+
+  useEffect(() => {
+    if (!editingZoom) return;
+    const t = window.setTimeout(() => {
+      zoomInputRef.current?.focus();
+      zoomInputRef.current?.select();
+    }, 0);
+    return () => window.clearTimeout(t);
+  }, [editingZoom]);
 
   useEffect(() => {
     if (!chatOpen) return;
@@ -113,7 +144,31 @@ export function CanvasFab({
         </div>
       )}
 
-      <div className="fixed bottom-6 right-6 z-50">
+      {editingZoom && zoomRect && (
+        <input
+          ref={zoomInputRef}
+          type="text"
+          inputMode="numeric"
+          value={zoomInput}
+          onChange={e => setZoomInput(e.target.value)}
+          onBlur={commitZoomEdit}
+          onKeyDown={e => {
+            if (e.key === "Enter") { e.preventDefault(); commitZoomEdit(); }
+            else if (e.key === "Escape") { e.preventDefault(); setEditingZoom(false); }
+          }}
+          style={{
+            position: "fixed",
+            left: zoomRect.left,
+            top: zoomRect.top,
+            width: zoomRect.width,
+            height: zoomRect.height,
+          }}
+          className="z-[60] text-center text-sm font-medium text-foreground bg-background
+            border border-brand/50 ring-2 ring-brand/20 rounded-md focus:outline-none"
+        />
+      )}
+
+      <div ref={fbgRef} className="fixed bottom-6 right-6 z-50">
         <FloatingButtonGroup
           label="Canvas controls"
           variant="floating"
@@ -127,13 +182,13 @@ export function CanvasFab({
               iconOnly: true,
               onSelect: () => setZoomTo(zoom - STEP),
               disabled: zoom <= MIN_ZOOM,
-              shortcut: "⌘-",
+              hideTooltip: true,
             },
             {
               id: "zoom-value",
               label: `${percent}%`,
               reserveLabels: ["250%"],
-              onSelect: () => setZoomTo(1),
+              onSelect: startZoomEdit,
             },
             {
               id: "zoom-in",
@@ -142,7 +197,7 @@ export function CanvasFab({
               iconOnly: true,
               onSelect: () => setZoomTo(zoom + STEP),
               disabled: zoom >= MAX_ZOOM,
-              shortcut: "⌘+",
+              hideTooltip: true,
             },
             { type: "separator" },
             {

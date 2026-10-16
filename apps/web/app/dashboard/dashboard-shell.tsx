@@ -39,15 +39,7 @@ export function DashboardShell({ user, initialName = "Untitled dashboard" }: {
           onSave={() => notify("Dashboard saved", `"${dashboardName}" is up to date`)}
         />
         <DashboardSheetFrame zoom={zoom} onZoomChange={setZoom}>
-          <div className="flex flex-row h-full w-full"
-            onDragOver={e => { if (e.dataTransfer.types.includes("application/x-databubble-tile")) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; } }}
-            onDrop={e => {
-              const type = e.dataTransfer.getData("application/x-databubble-tile");
-              if (!type) return;
-              e.preventDefault();
-              window.dispatchEvent(new CustomEvent("sandbox-add-chart", { detail: { type } }));
-            }}
-          >
+          <div className="flex flex-row h-full w-full">
             <DashboardSandbox hidePicker />
           </div>
         </DashboardSheetFrame>

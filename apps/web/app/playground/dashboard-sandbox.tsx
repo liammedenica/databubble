@@ -398,6 +398,21 @@ const ROW_GROUPS: ChartId[][] = [
   ["sparkline", "gauge", "metric"],
   ["waffle", "brush"],
 ];
+// Approximate footprint used for drop preview + default placement sizing.
+// Real tile sizes come from `offsetWidth/Height` once mounted; these are just the pre-mount guess.
+const DROP_SIZES: Record<ChartId, { w: number; h: number }> = {
+  line:      { w: 500, h: 340 },
+  bar:       { w: 500, h: 340 },
+  donut:     { w: 500, h: 340 },
+  heatmap:   { w: 740, h: 220 },
+  treemap:   { w: 500, h: 340 },
+  sparkline: { w: 420, h: 180 },
+  gauge:     { w: 340, h: 300 },
+  metric:    { w: 340, h: 180 },
+  waffle:    { w: 500, h: 340 },
+  brush:     { w: 500, h: 260 },
+};
+
 const INITIAL_POSITIONS: Record<ChartId, {x:number;y:number}> = {
   // X values spaced by GAP=16 between card widths. Y is overwritten by masonry packing.
   line:      { x: 0,    y: 0 },
@@ -413,7 +428,7 @@ const INITIAL_POSITIONS: Record<ChartId, {x:number;y:number}> = {
 };
 
 // ── DashboardSandbox ───────────────────────────────────────────────────────
-export type DashboardSandboxHandle = { addChart: (id: ChartId) => void };
+export type DashboardSandboxHandle = { addChart: (id: ChartId, dropAt?: { x: number; y: number }) => void };
 
 export const DashboardSandbox = forwardRef<DashboardSandboxHandle, {
   hidePicker?: boolean;
@@ -587,22 +602,21 @@ export const DashboardSandbox = forwardRef<DashboardSandboxHandle, {
     setContextMenu({ x, y, id });
   }
 
-  function addChart(id: ChartId) {
+  function addChart(id: ChartId, dropAt?: { x: number; y: number }) {
     if (visible.has(id)) {
       // Already on canvas — select + bring to front for feedback.
       setSelected(id);
       setZOrder(prev => [...prev.filter(x => x !== id), id]);
       return;
     }
-    // Place at the initial position but clamped to the stage. When embedded in
-    // the smaller dashboard sheet, this also prevents tiles landing off-screen.
-    const initial = INITIAL_POSITIONS[id];
+    const size = DROP_SIZES[id];
+    const target = dropAt
+      ? { x: dropAt.x - size.w / 2, y: dropAt.y - size.h / 2 }
+      : INITIAL_POSITIONS[id];
     const stage = stageRef.current;
-    // Approximate tile size with a conservative default so we never overshoot.
-    const APPROX = 500;
     const clamped = stage
-      ? { x: Math.max(0, Math.min(stage.clientWidth - APPROX, initial.x)), y: Math.max(0, Math.min(stage.clientHeight - 200, initial.y)) }
-      : initial;
+      ? { x: Math.max(0, Math.min(stage.clientWidth - size.w, target.x)), y: Math.max(0, Math.min(stage.clientHeight - size.h, target.y)) }
+      : target;
     setPositions(prev => ({ ...prev, [id]: clamped }));
     setVisible(prev => { const next = new Set(prev); next.add(id); return next; });
     setZOrder(prev => [...prev.filter(x => x !== id), id]);
@@ -617,16 +631,34 @@ export const DashboardSandbox = forwardRef<DashboardSandboxHandle, {
   // External handle so the dashboard shell can drop tiles via sidebar drag.
   useImperativeHandle(ref, () => ({ addChart }), [addChart]);
 
+  // Drop preview — mirrors the tile's footprint while the user drags from the sidebar.
+  const [dropPreview, setDropPreview] = useState<{ type: ChartId; x: number; y: number } | null>(null);
+
   // Also listen for a global event (back-compat for drag events the dashboard sidebar fires).
   useEffect(() => {
     const SIDEBAR_IDS = new Set<ChartId>(["line", "bar", "donut", "sparkline", "metric", "gauge", "waffle", "heatmap", "treemap", "brush"]);
     const onAddEvent = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { type?: string } | undefined;
+      const detail = (e as CustomEvent).detail as { type?: string; x?: number; y?: number } | undefined;
       const type = detail?.type;
-      if (type && SIDEBAR_IDS.has(type as ChartId)) addChart(type as ChartId);
+      if (!type || !SIDEBAR_IDS.has(type as ChartId)) return;
+      const dropAt = typeof detail?.x === "number" && typeof detail?.y === "number"
+        ? { x: detail.x, y: detail.y } : undefined;
+      addChart(type as ChartId, dropAt);
     };
+    const onDragStart = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { type?: string } | undefined;
+      const t = detail?.type;
+      if (t && SIDEBAR_IDS.has(t as ChartId)) setDropPreview({ type: t as ChartId, x: -9999, y: -9999 });
+    };
+    const onDragEnd = () => setDropPreview(null);
     window.addEventListener("sandbox-add-chart", onAddEvent as EventListener);
-    return () => window.removeEventListener("sandbox-add-chart", onAddEvent as EventListener);
+    window.addEventListener("sandbox-drag-start", onDragStart as EventListener);
+    window.addEventListener("sandbox-drag-end", onDragEnd);
+    return () => {
+      window.removeEventListener("sandbox-add-chart", onAddEvent as EventListener);
+      window.removeEventListener("sandbox-drag-start", onDragStart as EventListener);
+      window.removeEventListener("sandbox-drag-end", onDragEnd);
+    };
   }, [addChart]);
   const positionsRef = useRef(positions);
   positionsRef.current = positions;
@@ -1445,7 +1477,56 @@ export const DashboardSandbox = forwardRef<DashboardSandboxHandle, {
           return (
             <div ref={stageRef} className="relative"
               style={hidePicker ? { width: "100%", height: "100%" } : { minWidth: 1620, minHeight: 1620 }}
-              onPointerDown={e => { if (e.target === e.currentTarget) setSelected(null); }}>
+              onPointerDown={e => { if (e.target === e.currentTarget) setSelected(null); }}
+              onDragOver={e => {
+                if (!e.dataTransfer.types.includes("application/x-databubble-tile")) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "copy";
+                const stage = stageRef.current;
+                if (!stage) return;
+                const rect = stage.getBoundingClientRect();
+                const scale = rect.width / stage.clientWidth || 1;
+                const localX = (e.clientX - rect.left) / scale;
+                const localY = (e.clientY - rect.top) / scale;
+                setDropPreview(prev => (prev ? { ...prev, x: localX, y: localY } : prev));
+              }}
+              onDragLeave={e => {
+                const to = e.relatedTarget as Node | null;
+                if (to && stageRef.current?.contains(to)) return;
+                setDropPreview(prev => (prev ? { ...prev, x: -9999, y: -9999 } : prev));
+              }}
+              onDrop={e => {
+                const type = e.dataTransfer.getData("application/x-databubble-tile");
+                setDropPreview(null);
+                if (!type) return;
+                e.preventDefault();
+                const stage = stageRef.current;
+                if (!stage) return;
+                const rect = stage.getBoundingClientRect();
+                const scale = rect.width / stage.clientWidth || 1;
+                const localX = (e.clientX - rect.left) / scale;
+                const localY = (e.clientY - rect.top) / scale;
+                if ((ALL_IDS as string[]).includes(type)) addChart(type as ChartId, { x: localX, y: localY });
+              }}>
+              {dropPreview && dropPreview.x > -9000 && (() => {
+                const size = DROP_SIZES[dropPreview.type];
+                const stage = stageRef.current;
+                const maxX = (stage?.clientWidth ?? 1800) - size.w;
+                const maxY = (stage?.clientHeight ?? 1120) - size.h;
+                const left = Math.max(0, Math.min(maxX, dropPreview.x - size.w / 2));
+                const top  = Math.max(0, Math.min(maxY, dropPreview.y - size.h / 2));
+                return (
+                  <div
+                    className="absolute pointer-events-none rounded-xl border-2 border-dashed border-blue-500/70 bg-blue-500/10 shadow-lg shadow-blue-500/10 transition-[left,top] duration-75"
+                    style={{ left, top, width: size.w, height: size.h, zIndex: 50 }}
+                  >
+                    <div className="absolute top-2 left-2 inline-flex items-center gap-1.5 px-2 h-6 rounded-md bg-blue-500 text-white text-[11px] font-semibold shadow-sm">
+                      {CHART_LABELS[dropPreview.type]}
+                      <span className="opacity-80 font-mono">· {size.w}×{size.h}</span>
+                    </div>
+                  </div>
+                );
+              })()}
               {visibleIds.length === 0 && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <div className="text-center">

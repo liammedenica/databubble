@@ -30,6 +30,8 @@ export interface FloatingButtonGroupAction {
   shortcut?: string;
   /** Other labels this item can switch to, such as ["Copied"] for Share. The button keeps the width of the widest, so a label change never moves anything. */
   reserveLabels?: readonly string[];
+  /** Opt out of the hover tooltip even for icon-only buttons. The icon's aria-label still provides the accessible name. */
+  hideTooltip?: boolean;
 }
 
 export interface FloatingButtonGroupSeparator {
@@ -254,7 +256,7 @@ export function FloatingButtonGroup({ items, label, variant = "muted", size = "m
     <motion.span className={styles.highlight} data-pressing={pressing && activeId ? "" : undefined} style={{ x, y, width, height, opacity, scale }} aria-hidden="true" />
     {items.map((item, position) => {
       if (!isAction(item)) return <span key={item.id ?? `separator-${position}`} className={styles.separator} role="separator" aria-orientation={vertical ? "horizontal" : "vertical"} />;
-      const { id, label: itemLabel, icon, onSelect, disabled = false, pressed, shortcut, reserveLabels = [] } = item;
+      const { id, label: itemLabel, icon, onSelect, disabled = false, pressed, shortcut, reserveLabels = [], hideTooltip } = item;
       const iconOnly = !!icon && (item.iconOnly ?? groupIconOnly);
       const button = <button
         ref={node => { if (node) nodes.current.set(id, node); else nodes.current.delete(id); }}
@@ -290,7 +292,7 @@ export function FloatingButtonGroup({ items, label, variant = "muted", size = "m
         <ItemBody label={itemLabel} icon={icon} iconOnly={iconOnly} reserve={reserveLabels} reduced={reduced} />
       </button>;
       // Tooltips render no wrapper element, so every button stays a direct child of the tray and measures against it.
-      if (!iconOnly && !shortcut) return <Fragment key={id}>{button}</Fragment>;
+      if ((!iconOnly && !shortcut) || hideTooltip) return <Fragment key={id}>{button}</Fragment>;
       const tip = <TipContent label={itemLabel} shortcut={shortcut} />;
       return side === "top" || side === "bottom"
         ? <Tooltip key={id} side={side} content={tip}>{button}</Tooltip>

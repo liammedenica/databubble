@@ -1,32 +1,31 @@
 "use client"
 
 import * as React from "react"
-import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes"
 
-function ThemeProvider({
-  children,
-  ...props
-}: React.ComponentProps<typeof NextThemesProvider>) {
-  return (
-    <NextThemesProvider
-      attribute="class"
-      defaultTheme="light"
-      enableSystem={false}
-      disableTransitionOnChange
-      {...props}
-    >
-      <ThemeDataAttr />
-      <ThemeHotkey />
-      {children}
-    </NextThemesProvider>
-  )
+type Theme = "light" | "dark"
+type ThemeContextValue = {
+  theme: Theme
+  resolvedTheme: Theme
+  setTheme: (t: Theme) => void
+}
+
+const ThemeContext = React.createContext<ThemeContextValue>({
+  theme: "light", resolvedTheme: "light", setTheme: () => {},
+})
+
+export function useTheme() {
+  return React.useContext(ThemeContext)
+}
+
+function applyTheme(t: Theme) {
+  const root = document.documentElement
+  root.classList.toggle("dark", t === "dark")
+  if (t === "dark") root.setAttribute("data-theme", "dark")
+  else root.removeAttribute("data-theme")
 }
 
 function isTypingTarget(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) {
-    return false
-  }
-
+  if (!(target instanceof HTMLElement)) return false
   return (
     target.isContentEditable ||
     target.tagName === "INPUT" ||
@@ -35,48 +34,36 @@ function isTypingTarget(target: EventTarget | null) {
   )
 }
 
-function ThemeDataAttr() {
-  const { resolvedTheme } = useTheme()
+function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [theme, setThemeState] = React.useState<Theme>(() => {
+    if (typeof document === "undefined") return "light"
+    return document.documentElement.classList.contains("dark") ? "dark" : "light"
+  })
+
+  const setTheme = React.useCallback((t: Theme) => {
+    setThemeState(t)
+    try { localStorage.setItem("theme", t) } catch {}
+    applyTheme(t)
+  }, [])
+
   React.useEffect(() => {
-    const root = document.documentElement
-    if (resolvedTheme === "dark") root.setAttribute("data-theme", "dark")
-    else root.removeAttribute("data-theme")
-  }, [resolvedTheme])
-  return null
-}
-
-function ThemeHotkey() {
-  const { resolvedTheme, setTheme } = useTheme()
-
-  React.useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.defaultPrevented || event.repeat) {
-        return
-      }
-
-      if (event.metaKey || event.ctrlKey || event.altKey) {
-        return
-      }
-
-      if (!event.key || event.key.toLowerCase() !== "d") {
-        return
-      }
-
-      if (isTypingTarget(event.target)) {
-        return
-      }
-
-      setTheme(resolvedTheme === "dark" ? "light" : "dark")
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.repeat) return
+      if (event.metaKey || event.ctrlKey || event.altKey) return
+      if (!event.key || event.key.toLowerCase() !== "d") return
+      if (isTypingTarget(event.target)) return
+      setTheme(theme === "dark" ? "light" : "dark")
     }
-
     window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [theme, setTheme])
 
-    return () => {
-      window.removeEventListener("keydown", onKeyDown)
-    }
-  }, [resolvedTheme, setTheme])
+  const value = React.useMemo(
+    () => ({ theme, resolvedTheme: theme, setTheme }),
+    [theme, setTheme],
+  )
 
-  return null
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
 }
 
 export { ThemeProvider }

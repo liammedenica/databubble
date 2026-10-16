@@ -149,7 +149,16 @@ export function HoverCard({ children, content, side = "bottom", align = "start",
     </PopoverPrimitive.Anchor>
     <AnimatePresence>
       {open && <PopoverPrimitive.Portal forceMount key="card">
-        <PopoverPrimitive.Content forceMount id={cardId} role="tooltip" side={side} align={align} sideOffset={8} collisionPadding={12} onOpenAutoFocus={event => event.preventDefault()} onCloseAutoFocus={event => event.preventDefault()} onEscapeKeyDown={() => { dismissed.current = true; }} onInteractOutside={event => { if (triggerRef.current?.contains(event.target as Node)) event.preventDefault(); }} onPointerEnter={(event: PointerEvent) => { if (!mouse(event)) return; inside.current.card = true; window.clearTimeout(timers.current.close); }} onPointerLeave={(event: PointerEvent) => { if (!mouse(event)) return; inside.current.card = false; scheduleClose(); }} render={<Surface instant={state.instant} reduced={reduced} className={className} />}>{content}</PopoverPrimitive.Content>
+        <PopoverPrimitive.Content
+          forceMount id={cardId} role="tooltip" side={side} align={align} sideOffset={8} collisionPadding={12}
+          onOpenAutoFocus={event => event.preventDefault()} onCloseAutoFocus={event => event.preventDefault()}
+          onEscapeKeyDown={() => { dismissed.current = true; }}
+          onInteractOutside={event => { if (triggerRef.current?.contains(event.target as Node)) event.preventDefault(); }}
+          onPointerEnter={(event: PointerEvent) => { if (!mouse(event)) return; inside.current.card = true; window.clearTimeout(timers.current.close); }}
+          onPointerLeave={(event: PointerEvent) => { if (!mouse(event)) return; inside.current.card = false; scheduleClose(); }}
+        >
+          <Surface instant={state.instant} reduced={reduced} className={className}>{content}</Surface>
+        </PopoverPrimitive.Content>
       </PopoverPrimitive.Portal>}
     </AnimatePresence>
   </PopoverPrimitive.Root>;
