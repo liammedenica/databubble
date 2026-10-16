@@ -4,7 +4,7 @@
 
 **Pricing:** Free ($0, 1 dashboard, no sharing) · Starter ($9.99/mo / £7.99, 10 dashboards, sharing — "Most popular") · Pro ($17.99/mo / £15.99, 20 dashboards, custom branding). Sharing is a paid feature (Starter+). Currency auto-detects via `navigator.language`.
 
-Brand name: **DataBubble** (was Dashly). Domain: databubble.app. CSS classes use `db-` prefix.
+Brand name: **DataBubble**. Domain: databubble.app. CSS classes use `db-` prefix.
 
 ## Monorepo structure
 
@@ -238,7 +238,7 @@ Value-first: users create a dashboard without an account. Auth (Clerk/NextAuth) 
 ## Dev
 
 ```bash
-# from Dashly/Dashly/
+# from databubble/
 npm run dev
 ```
 

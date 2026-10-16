@@ -53,7 +53,7 @@ The DB schema is already live. Need to wire the canvas "Save" button to write to
 ## Dev
 
 ```bash
-# from Dashly/Dashly/
+# from databubble/
 npm run dev
 ```
 
