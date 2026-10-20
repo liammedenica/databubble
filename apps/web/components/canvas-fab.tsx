@@ -168,7 +168,14 @@ export function CanvasFab({
         />
       )}
 
-      <div ref={fbgRef} className="fixed bottom-6 right-6 z-50">
+      <div
+        ref={fbgRef}
+        className="fixed bottom-6 right-6 z-50
+          [&_button[data-id='zoom-value']]:!text-brand
+          [&_button[data-id='zoom-value']]:font-semibold
+          [&_button[data-id='ai']]:!bg-brand
+          [&_button[data-id='ai']]:!text-white"
+      >
         <FloatingButtonGroup
           label="Canvas controls"
           variant="floating"

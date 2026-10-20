@@ -99,6 +99,16 @@ export function DashboardSheetFrame({
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
     >
+      {/* Soft radial blue glow — matches the landing-page hero halo */}
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none opacity-70 dark:opacity-25"
+        style={{
+          background:
+            "radial-gradient(ellipse 60% 55% at 50% 50%, rgba(96,165,250,0.25) 0%, rgba(59,130,246,0.06) 50%, transparent 75%)",
+        }}
+      />
+
       {/* Sheet */}
       <div
         ref={sheetRef}
@@ -155,17 +165,17 @@ function ShortcutsHint() {
         openDelay={120}
         content={
           <div className="w-60">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-3">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-brand/80 mb-3">
               Shortcuts
             </p>
             <ul className="space-y-1.5">
               {SHORTCUTS.map(s => (
                 <li key={s.label} className="flex items-center justify-between gap-3 text-xs">
-                  <span className="text-foreground/80">{s.label}</span>
+                  <span className="text-foreground/80 font-medium">{s.label}</span>
                   <span className="flex items-center gap-1 shrink-0">
                     {s.keys.map((k, i) => (
                       <kbd key={i} className="inline-flex items-center justify-center h-5 min-w-[1.25rem] px-1.5
-                        rounded border border-border bg-muted text-[10px] font-medium text-foreground/80">
+                        rounded border border-brand/25 bg-brand/10 text-[10px] font-semibold text-brand">
                         {k}
                       </kbd>
                     ))}

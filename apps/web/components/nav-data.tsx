@@ -43,13 +43,13 @@ export function NavData({ fields = DEMO_FIELDS }: { fields?: DataField[] }) {
       <SidebarMenu>
         <Collapsible open={open} onOpenChange={setOpen} className="group/collapsible" render={<SidebarMenuItem />}>
           <CollapsibleTrigger render={<SidebarMenuButton tooltip="Data" />}>
-            <DatabaseIcon className="group-data-open/collapsible:text-brand transition-colors" />
-            <span>Data</span>
+            <DatabaseIcon className="!size-5 text-brand" strokeWidth={2.5} />
+            <span className="font-semibold">Data</span>
             <ChevronRightIcon className="ml-auto transition-transform duration-200 group-data-open/collapsible:rotate-90" />
           </CollapsibleTrigger>
           <CollapsibleContent>
             <div className="relative mx-3.5 translate-x-px pl-2.5 py-0.5
-              before:absolute before:left-0 before:top-3.5 before:bottom-11 before:w-px before:bg-brand/50 dark:before:bg-brand/80
+              before:absolute before:left-0 before:top-3.5 before:bottom-11 before:w-px before:bg-border
               group-data-[collapsible=icon]:hidden">
               {fields.map(f => {
                 const Icon = FIELD_ICONS[f.kind];
@@ -61,7 +61,7 @@ export function NavData({ fields = DEMO_FIELDS }: { fields?: DataField[] }) {
                       e.dataTransfer.effectAllowed = "copy";
                     }}
                     className="group/row flex items-center gap-2 pl-2 pr-2 h-7 rounded-md cursor-grab active:cursor-grabbing
-                      select-none text-sm text-sidebar-foreground/80 hover:text-sidebar-foreground
+                      select-none text-sm font-medium text-muted-foreground hover:text-sidebar-foreground
                       hover:bg-sidebar-accent/70 transition-colors">
                     <Icon className="w-4 h-4 shrink-0 text-muted-foreground group-hover/row:text-brand transition-colors" />
                     <span className="truncate flex-1">{f.label}</span>

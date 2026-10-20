@@ -263,6 +263,7 @@ export function FloatingButtonGroup({ items, label, variant = "muted", size = "m
         type="button"
         className={styles.item}
         data-fbg-item=""
+        data-id={id}
         data-active={activeId === id ? "" : undefined}
         data-icon={icon ? "" : undefined}
         data-icon-only={iconOnly ? "" : undefined}

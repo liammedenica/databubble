@@ -38,20 +38,20 @@ export function NavRecentDashboards({ items = DEMO_RECENT }: { items?: RecentDas
       <SidebarMenu>
         <Collapsible open={open} onOpenChange={setOpen} className="group/collapsible" render={<SidebarMenuItem />}>
           <CollapsibleTrigger render={<SidebarMenuButton tooltip="Recent dashboards" />}>
-            <ClockIcon className="group-data-open/collapsible:text-brand transition-colors" />
-            <span>Recent</span>
+            <ClockIcon className="!size-5 text-brand" strokeWidth={2.5} />
+            <span className="font-semibold">Recent</span>
             <ChevronRightIcon className="ml-auto transition-transform duration-200 group-data-open/collapsible:rotate-90" />
           </CollapsibleTrigger>
           <CollapsibleContent>
             <SidebarMenuSub className="relative border-l-0
-              before:absolute before:left-0 before:top-4 before:bottom-4 before:w-px before:bg-brand/50 dark:before:bg-brand/80">
+              before:absolute before:left-0 before:top-4 before:bottom-4 before:w-px before:bg-border">
               {items.map(d => (
                 <SidebarMenuSubItem key={d.id}>
                   <button
                     type="button"
                     onClick={() => router.push(`/dashboard?id=${d.id}`)}
                     className="w-full text-left flex items-center gap-2 min-w-0 h-8 px-2 rounded-md
-                      text-sm text-sidebar-foreground/90 hover:text-sidebar-foreground
+                      text-sm font-medium text-muted-foreground hover:text-sidebar-foreground
                       hover:bg-sidebar-accent/70 transition-colors cursor-pointer"
                   >
                     <span className="truncate">{d.name}</span>

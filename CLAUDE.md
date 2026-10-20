@@ -29,7 +29,9 @@ packages/ui/       Shared components (@workspace/ui/*)
 | `apps/web/components/dashboard-topbar.tsx` | Breadcrumb + InlineEdit name + refresh + Share/Save ButtonGroup + ThemeSwitch |
 | `apps/web/components/canvas-fab.tsx` | Floating button group bottom-right — zoom −/%/+ + Ask AI (chat shell) |
 | `apps/web/components/toast-host.tsx` | Bottom-center toast slot driven by `{id,title,description}` state |
-| `apps/web/components/app-sidebar.tsx` | Dashboard sidebar — brand + search + Recent + Charts (drag + click adds to canvas) + Data + user |
+| `apps/web/components/app-sidebar.tsx` | Dashboard sidebar — brand wordmark + Recent + Charts (drag + click adds to canvas) + Data + user. Minimalist aesthetic — no tone chips, muted icons, soft blue indent line on open groups |
+| `apps/web/components/brand-header.tsx` | Centered "DataBubble" wordmark in brand blue; collapses to "DB" when sidebar is in icon mode |
+| `apps/web/components/theme-provider.tsx` | Lightweight local provider replacing next-themes. Exports `useTheme` with `{ theme, resolvedTheme, setTheme }`. FOUC-prevention script lives in server-rendered `<head>` of `app/layout.tsx` |
 | `apps/web/components/nav-charts.tsx` | Chart picker rows: `onDragStart` + `onClick` both dispatch `sandbox-add-chart` window event |
 | `apps/web/components/user-menu.tsx` | Shared UserMenu — hover dropdown, avatar, theme toggle, nav links, sign out |
 | `apps/web/components/create-dashboard-dialog.tsx` | Shared create dialog — used on landing + dashboards pages |
@@ -38,59 +40,47 @@ packages/ui/       Shared components (@workspace/ui/*)
 | `apps/web/lib/analyze.ts` | Column type detection (`date / number / category / text / id`) |
 | `apps/web/lib/palettes.ts` | 6 color palettes (Violet default) + `buildCustomPalette` |
 
-## Dashboard canvas architecture (as of 2026-10-15)
+## Dashboard canvas architecture (as of 2026-10-16)
 
 The `/dashboard` middle area is a **pannable grey workspace with a fixed-size sheet floating in it**. The sheet embeds the `/playground` sandbox for all tile behaviour — don't rebuild per-tile components from scratch; always extract/embed.
 
-- `<DashboardSheetFrame zoom onZoomChange>` — grey dot-grid workspace, 1800×1120 sheet centered. Pan via middle-click or empty-drag; zoom via Ctrl/⌘+scroll (cursor-anchored) or the FAB `−/%/+` controls. Default zoom **0.7**; auto-fit only shrinks further if window is smaller.
-- `<DashboardSandbox hidePicker />` — the embedded sandbox. `hidePicker` collapses its own left picker; the dashboard's app sidebar is the chart picker instead. The sandbox listens for `window` `sandbox-add-chart` events (and exposes `addChart` via `useImperativeHandle` on its ref).
-- `nav-charts.tsx` rows dispatch `new CustomEvent("sandbox-add-chart", { detail: { type } })` on **click AND on drop** — the sheet-frame catches HTML5 drops and re-fires the same event.
-- Sandbox stage is sized to the sheet exactly when embedded (no 1620px minimum), overflow-hidden, and **drag release is clamped to stage bounds** via `clampToStage` so tiles can't drift off the sheet edge.
+- `<DashboardSheetFrame zoom onZoomChange>` — grey dot-grid workspace, 1800×1120 sheet centered. Pan via middle-click or empty-drag; zoom via Ctrl/⌘+scroll (cursor-anchored) or the FAB `−/%/+` controls. **Default zoom 0.7 is honoured regardless of window size** (no auto-fit shrink). Reset view returns to 0.7 with a grow+fade+slide-in entrance.
+- `<DashboardSandbox hidePicker />` — the embedded sandbox. `hidePicker` collapses its own left picker; the dashboard's app sidebar is the chart picker instead. The sandbox owns drop handling directly — dashboard-shell is now a thin wrapper with no drop handler.
+- `nav-charts.tsx` rows dispatch `sandbox-drag-start { type }` on `onDragStart`, `sandbox-drag-end` on `onDragEnd`, and `sandbox-add-chart { type }` on click. Drop position comes from the sandbox stage's own `onDrop`.
+- **Drop preview**: dashed-blue ghost rectangle inside the stage, sized by `DROP_SIZES[type]`, with a chip in the corner showing the type + dims. Cursor-relative position computed scale-aware via `rect.width / stage.clientWidth`.
+- `addChart(id, dropAt?)` accepts an optional `{ x, y }` and centers the tile on the cursor, clamped to stage bounds. Click (no dropAt) still uses `INITIAL_POSITIONS`.
+- Sandbox stage is sized to the sheet exactly when embedded (no 1620px minimum), overflow-hidden, and **drag release is clamped to stage bounds** via `clampToStage`.
 - One instance per chart type on canvas (sandbox's state hooks are shared per type). Splitting into per-tile components is a multi-day refactor — only do it if users explicitly ask for multiple instances of the same type.
 
+### Canvas FAB (components/canvas-fab.tsx)
+- Floating button-group bottom-right: zoom −, zoom %, zoom +, separator, Ask AI.
+- +/− use `hideTooltip: true` (vendor-patched FBG prop) so they don't show "Zoom in"/"Zoom out" labels on hover.
+- Zoom %: `onSelect` calls `startZoomEdit` → queries `button[data-fbg-item]` index 1 under `fbgRef`, grabs its rect, overlays a fixed-positioned `<input>` seeded with current %. Enter commits (clamped 25–250), Esc cancels, blur commits.
+
+### Shortcut hints (bottom-left of sheet-frame)
+- Floating `(i)` button → uiarc `HoverCard` panel listing Pan, Zoom, Save, Undo, Copy tile, Paste tile, Toggle theme with styled `<kbd>` glyphs. Opens on hover (120ms delay).
+
 ## Tech stack gotchas
 
-**UI library**: Base UI (`@base-ui/react`), NOT Radix. Shadcn was inited with Nova preset.
+**UI library**: Shadcn (Nova preset) + uiarc shadcn registry (`@uiarc/*`). Underlying primitives are mostly Radix 1.x (popover, dropdown, tooltip, hover-card are all Radix-based). Base UI (`@base-ui/react`) is only used by a few workspace/ui primitives — do not assume Base UI patterns for arc components.
 
-**Base UI HoverCard**: wraps `PreviewCard` from `@base-ui/react/preview-card`. Does NOT accept `openDelay`/`closeDelay` (those are Radix props). Base UI handles hover timing internally.
+**uiarc install gotchas** (re-check after any `shadcn add @uiarc/*`):
+- `foundation.css` is NOT auto-imported — bridge any missing CSS vars in `packages/ui/src/styles/globals.css`.
+- Tooltip ships without `asChild` → button-in-button hydration crash; patch after install.
+- HoverCard ships with `render={<Surface/>}` on `PopoverPrimitive.Content` which Radix 1.x silently drops (naked content, no surface). Move `<Surface>` **inside** `<PopoverPrimitive.Content>` as a child instead.
+- FloatingButtonGroup ships with no way to opt out of hover tooltips on iconOnly items. We vendor-patched a `hideTooltip?: boolean` prop on `FloatingButtonGroupAction`.
 
-## Tech stack gotchas
-
-**UI library**: Base UI (`@base-ui/react`), NOT Radix. Shadcn was inited with Nova preset.
-
-**Base UI HoverCard**: wraps `PreviewCard` from `@base-ui/react/preview-card`. Does NOT accept `openDelay`/`closeDelay` (those are Radix props). Base UI handles hover timing internally.
+**Theme provider**: We rolled our own in `components/theme-provider.tsx` (not next-themes). React 19 + Next 16 warns about `<script>` tags inside client components, which next-themes 0.4.6 trips. The local provider exposes a compatible `useTheme` → `{ theme, resolvedTheme, setTheme }`. FOUC-prevention script is server-rendered inline in `app/layout.tsx`'s `<head>`.
 
 **Dark mode**: CSS variable dark mode. Chart colors use the `theme` object in `ChartConfig` to set different shades per mode — `light: "oklch(0.371 0 0)"` / `dark: "oklch(0.87 0 0)"` — because `--chart-1` is a light grey in both modes and invisible against a light card background.
 
-**Custom tile grid** (replaced react-grid-layout entirely):
-- `SNAP = 24px` — all positions/sizes are multiples of 24
-- `type LayoutItem = { id, x, y, w, h, type: "stat"|"chart"|"table", stat?, chart?, table? }` in pixels
-- `buildLayout()` — returns `[]`; canvas starts empty, tiles are dragged in from sidebar
-- Canvas div: `position: relative; overflow-x: hidden`. Items: `position: absolute; left: x; top: y`
-- `useIsomorphicLayoutEffect` fires before paint — no layout flash
-- `canvasW = el.clientWidth - SNAP` (1 tile narrower than actual to tighten drag bounds)
-- Drag: rubber-band overshoot on all edges, hard snap on release via `clamp(snapTo(rx), minX, maxX)`
-- Resize: 8 edge/corner handles (opacity-0, visible on group-hover), all bounds-checked against canvasW
-- Fixed overlay `z-40` during drag blocks sidebar hover cards and sets grabbing cursor globally
-- `cancelActiveDrag` module-level ref prevents stuck drags on multi-mousedown
-- **Collision system** — 1-SNAP gap enforced between all items at all times
-  - `tilesOverlap(a, b)` — commit-time check, 1-SNAP padding on all sides
-  - `tileShouldYield(item, blocker)` — preview check, requires ≥40% penetration on BOTH axes (threshold is `Math.min(item.w, blocker.w) * 0.4`). Uses the smaller tile's dimension so a large chart won't cascade from a barely-touching KPI, but a KPI dragged 40%+ into a chart still triggers cascade.
-  - `computeCascade(layout, dragId, dragX, dragY, canvasW, preview?)` — returns resolved `LayoutItem[]` or `null` (bounce)
-    - `push(item, tx, ty, chain)` — nested recursive chain-push; moves `item` to (tx,ty), recursively pushing any tiles in the way in the same direction. Saves full `working` snapshot before attempting; rolls back all on failure. Cycle-guarded via `chain: Set<string>`.
-    - **3-branch `onUpdate`**: (1) ≥40% penetration → cascade; (2) SNAP-gap violation only → small tile near single larger blocker snaps adjacent via `resolveCollision`, otherwise bounce to origin; (3) clear → place freely
-    - **Same-row tiles** (`sameRow = |item.y − blocker.y| < SNAP`): try BOTH horizontal directions before falling down — ensures 3-tile horizontal chain-shuffles work even when the preferred side hits the canvas wall
-    - **Cross-row tiles** (`preferUp = item.y >= blocker.y`): if item is below the blocker (blocker moved down from above), try UP first — this gives swap/bubble-up behaviour so KPIs rise into the space a large chart vacated
-    - On `null` return → dragged tile bounces back to origin (no teleportation)
-  - `resolveCollision` — finds nearest free adjacent slot (right/left/below/above the first padded blocker). `allowFallback=false` returns `null` instead of the invalid position when no candidate is free. Blocker detection uses padded `rectOverlaps` (same as `tilesOverlap`) so zero-gap touching tiles are caught.
-  - Live preview during drag: fires per-RAF via `dragRafRef` when snap position changes; sets `dragProjection` Map for ghost rendering. Tiles rearrange on drop (not live), but preview shows likely destination.
+**Tile grid is inside the sandbox** (`app/playground/dashboard-sandbox.tsx`). The old `components/dashboard-grid.tsx` and its `computeCascade` / `push` system were deleted when `/dashboard` was rewritten to embed the sandbox. SNAP = 20px, GAP = 16px inside the sandbox. Collision follows the swap → push → nudge ladder (`trySwap` for ≥50% overlap on similar-sized tiles, `tryPush` with `snapCeil`/`snapFloor` for minimum displacement, `findNearestFree` ring-expansion as fallback). Auto-compact runs via a `ResizeObserver` debounced 120ms and only pushes neighbours DOWN on growth — never pulls up on shrink.
 
-**Base UI + drag-drop**: Base UI components intercept drag events. Sidebar draggable items use plain `<div onMouseDown={...}>` dispatching `window.dispatchEvent(new CustomEvent(...))` — never wrapped in SidebarMenuButton or similar. DashboardGrid listens via `window.addEventListener`.
-
-**Sidebar drag events**:
-- `"sidebar-drag-stat"` (plain `Event`) → opens stat card config dialog
-- `"sidebar-drag-chart"` (`CustomEvent` with `{ detail: { type: "bar"|"line"|"area"|"pie" } }`) → opens chart config dialog
-- `"sidebar-drag-table"` (plain `Event`) → opens table config dialog
+**Sidebar drag events (dashboard chart picker)**:
+- `onDragStart`: `dataTransfer.setData("application/x-databubble-tile", type)` + `window.dispatchEvent(new CustomEvent("sandbox-drag-start", { detail: { type } }))` so the sandbox can show its drop-preview ghost at the cursor.
+- `onDragEnd`: `window.dispatchEvent(new Event("sandbox-drag-end"))` to clear the ghost.
+- `onClick`: `window.dispatchEvent(new CustomEvent("sandbox-add-chart", { detail: { type } }))` — click adds at `INITIAL_POSITIONS[type]`.
+- `onDrop` is handled by the sandbox stage itself (not dashboard-shell). Drop → `addChart(type, { x: localX, y: localY })` with cursor-centered placement.
 
 **Date math**: All period calculations use `dataMaxDate()` (max date in the data), NOT `new Date()`. This means "current month" = month of the most recent data row, standard BI behaviour for static datasets.
 
@@ -120,21 +110,16 @@ Value-first: users create a dashboard without an account. Auth (Clerk/NextAuth) 
 
 ## What's built
 
+> **Note**: the drag/resize/collision bullets below describe the ORIGINAL `components/dashboard-grid.tsx` that was deleted when `/dashboard` was rewritten to embed the sandbox. The behaviours still broadly apply, but all mechanics now live inside `app/playground/dashboard-sandbox.tsx` (SNAP=20, GAP=16, swap → push → nudge ladder). Keep this list for reference of the feature surface, not for file-level details.
+
 - [x] Landing page with URL paste modal
 - [x] Server-side Google Sheets CSV fetch + parse
 - [x] Column type detection (date / number / category / text / id)
-- [x] Custom tile-based drag-and-drop canvas (SNAP=24px, absolute positioning)
-- [x] Drag with rubber-band overshoot + spring snap, bounded by canvas edges
-- [x] 8-handle edge/corner resize, bounds-checked
-- [x] Fixed overlay during drag (blocks sidebar hover, enforces grabbing cursor)
-- [x] Collision detection — 1-SNAP gap enforced, items cannot overlap
-- [x] Chain-push cascade: `push()` recursively shifts tiles in the same direction, enabling 3-tile horizontal shuffles
-- [x] Bounce: drop rejected (cascade returns null) → dragged tile snaps back to origin
-- [x] Same-row horizontal priority: tiles in same row always try both horizontal directions before falling down
-- [x] Cross-row preferUp: tiles below a descending drag tile escape upward (swap/bubble-up), not further down
-- [x] Live preview cascade during drag (`dragProjection`) — shows ghost destinations before drop
-- [x] **Ctrl+Z** undo (history stack, up to 50 states), **Ctrl+C / Ctrl+V** copy-paste tiles
-- [x] Right-click context menu on all tile types: Duplicate / Edit / Delete
+- [x] Tile canvas via embedded sandbox — 10 chart types, drag/resize, swap+push+nudge collision, snap-to-grid
+- [x] Drop from sidebar shows a sized dashed-blue ghost at the cursor; drop places tile centered on the cursor
+- [x] Click the zoom % to type a custom value (25–250)
+- [x] (i) in bottom-left opens hover shortcuts panel
+- [x] Reset view returns to 70% default with grow+fade+slide-in entrance
 - [x] **Stat cards** — drag from sidebar → config dialog (metric, aggregation, period, trend comparison)
   - Plain-div layout (not Card/CardHeader) — matches landing page KpiCard style exactly
   - Uppercase label, bold 3xl number, sign-based badge (emerald for `+`, rose for `-`), accent bar in palette primary color
@@ -238,7 +223,7 @@ Value-first: users create a dashboard without an account. Auth (Clerk/NextAuth) 
 ## Dev
 
 ```bash
-# from databubble/
+cd C:/Users/LiamM/Desktop/Dashly/databubble
 npm run dev
 ```
 

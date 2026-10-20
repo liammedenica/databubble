@@ -64,17 +64,17 @@ export function NavCharts() {
       <SidebarMenu>
         <Collapsible open={open} onOpenChange={setOpen} className="group/collapsible" render={<SidebarMenuItem />}>
           <CollapsibleTrigger render={<SidebarMenuButton tooltip="Charts" />}>
-            <ChartNoAxesColumn className="group-data-open/collapsible:text-brand transition-colors" />
-            <span>Charts</span>
+            <ChartNoAxesColumn className="!size-5 text-brand" strokeWidth={2.5} />
+            <span className="font-semibold">Charts</span>
             <ChevronRightIcon className="ml-auto transition-transform duration-200 group-data-open/collapsible:rotate-90" />
           </CollapsibleTrigger>
           <CollapsibleContent>
             <div className="relative mx-3.5 translate-x-px pl-2.5 py-0.5 space-y-2
-              before:absolute before:left-0 before:top-7 before:bottom-3.5 before:w-px before:bg-brand/50 dark:before:bg-brand/80
+              before:absolute before:left-0 before:top-7 before:bottom-3.5 before:w-px before:bg-border
               group-data-[collapsible=icon]:hidden">
               {GROUPS.map(group => (
                 <div key={group.name}>
-                  <p className="pb-0.5 text-[10px] uppercase tracking-widest text-muted-foreground/70">
+                  <p className="pb-0.5 text-[10px] font-semibold uppercase tracking-widest text-brand/80">
                     {group.name}
                   </p>
                   <div>
@@ -94,7 +94,7 @@ export function NavCharts() {
                           window.dispatchEvent(new CustomEvent("sandbox-add-chart", { detail: { type } }));
                         }}
                         className="group/row flex items-center gap-2 pl-2 pr-2 h-7 rounded-md cursor-grab active:cursor-grabbing
-                          select-none text-sm text-sidebar-foreground/80 hover:text-sidebar-foreground
+                          select-none text-sm font-medium text-muted-foreground hover:text-sidebar-foreground
                           hover:bg-sidebar-accent/70 transition-colors"
                       >
                         <Icon className="w-4 h-4 shrink-0 text-muted-foreground group-hover/row:text-brand transition-colors" />

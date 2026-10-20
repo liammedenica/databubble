@@ -1,16 +1,13 @@
-// The Data Bubble brand mark — a speech bubble with 3 ascending chart bars.
-// Fill colour comes from `currentColor` so the parent sets it via text-{colour}.
+// DataBubble brand mark: three bubbles rising — the big one solid, the two
+// smaller ones fading as they float up. Fill colour comes from `currentColor`
+// so a parent can set `text-brand`.
 
-export function BubbleLogo({ className, bars = "#ffffff" }: { className?: string; bars?: string }) {
+export function BubbleLogo({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-      <path
-        d="M16 3C8.82 3 3 7.92 3 14C3 17.42 4.84 20.47 7.73 22.46L6.3 27.52C6.14 28.08 6.74 28.56 7.24 28.26L13.03 24.76C13.99 24.92 14.98 25 16 25C23.18 25 29 20.08 29 14C29 7.92 23.18 3 16 3Z"
-        fill="currentColor"
-      />
-      <rect x="10.5" y="15" width="2.3" height="4" rx="0.6" fill={bars} />
-      <rect x="14.85" y="12" width="2.3" height="7" rx="0.6" fill={bars} />
-      <rect x="19.2" y="9" width="2.3" height="10" rx="0.6" fill={bars} />
+      <circle cx="12"   cy="12"   r="11"  fill="currentColor" />
+      <circle cx="25.5" cy="21.5" r="5.5" fill="currentColor" fillOpacity="0.7" />
+      <circle cx="18"   cy="29"   r="3"   fill="currentColor" fillOpacity="0.45" />
     </svg>
   );
 }

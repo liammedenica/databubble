@@ -33,14 +33,14 @@ export function NavUser({ user }: { user: SupabaseUser }) {
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger render={
-            <SidebarMenuButton size="lg" className="aria-expanded:bg-muted" />
+            <SidebarMenuButton size="lg" className="aria-expanded:bg-muted group-data-[collapsible=icon]:size-10!" />
           }>
-            <span className="size-8 rounded-lg bg-brand text-white text-sm font-semibold flex items-center justify-center shrink-0">{initial}</span>
-            <div className="grid flex-1 text-left text-sm leading-tight">
+            <span className="size-9 rounded-lg bg-brand text-white text-sm font-semibold flex items-center justify-center shrink-0">{initial}</span>
+            <div className="grid flex-1 text-left text-sm leading-tight overflow-hidden transition-[max-width,opacity] duration-200 ease-out max-w-[200px] opacity-100 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:opacity-0">
               <span className="truncate font-medium">{name}</span>
               <span className="truncate text-xs text-muted-foreground">{email}</span>
             </div>
-            <ChevronsUpDownIcon className="ml-auto size-4" />
+            <ChevronsUpDownIcon className="ml-auto size-4 shrink-0 transition-[max-width,opacity,margin] duration-200 ease-out max-w-4 opacity-100 group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:ml-0 group-data-[collapsible=icon]:opacity-0" />
           </DropdownMenuTrigger>
           <DropdownMenuContent
             className="w-60"

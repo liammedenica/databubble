@@ -10,6 +10,7 @@ import { ButtonGroup } from "@/components/arc/button-group/button-group";
 import { InlineEdit } from "@/components/arc/inline-edit/inline-edit";
 import { ThemeSwitch } from "@/components/arc/theme-switch/theme-switch";
 import { Breadcrumb } from "@/components/arc/breadcrumb/breadcrumb";
+import { HoverCard } from "@/components/arc/hover-card/hover-card";
 
 export function DashboardTopbar({
   name,
@@ -67,33 +68,35 @@ export function DashboardTopbar({
     onRename(next);
   };
 
+  const NAME_MAX = 50;
   const validateName = (next: string) => {
     if (!next.trim()) return "Name can't be empty";
-    if (next.length > 80) return "Name is too long";
+    if (next.length > NAME_MAX) return `Keep it under ${NAME_MAX} characters`;
     return null;
   };
 
   return (
     <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border/60 px-4
       transition-[width,height] ease-linear">
-      <SidebarTrigger className="-ml-1" />
+      <SidebarTrigger className="-ml-1 [&_svg]:[stroke-width:2.5]" />
 
       <div className="h-5 w-px bg-border/60 mx-1.5" />
 
-      <Breadcrumb
-        items={[{ label: "My Dashboards", href: "/dashboards" }]}
-      />
+      <div className="[&_a]:font-medium" style={{ "--text-sm": "0.9375rem" } as React.CSSProperties}>
+        <Breadcrumb items={[{ label: "My Dashboards", href: "/dashboards" }]} />
+      </div>
 
       <ChevronRightIcon className="w-3.5 h-3.5 text-muted-foreground mx-1.5" strokeWidth={2} />
 
       <div
-        className="min-w-0 max-w-[22rem] flex items-center font-semibold"
+        className="min-w-0 max-w-[22rem] flex items-center"
         style={{
           "--text-secondary": "var(--foreground)",
-          "--inline-accent": "oklch(0.60 0.22 255)",
+          "--inline-accent": "var(--brand)",
         } as React.CSSProperties}
       >
         <InlineEdit
+          className="![--size:0.9375rem] ![--weight:600]"
           value={name}
           onSave={handleRename}
           label="Dashboard name"
@@ -103,28 +106,40 @@ export function DashboardTopbar({
         />
       </div>
 
-      <button
-        type="button"
-        onClick={triggerRefresh}
-        title="Refresh data"
-        className="inline-flex items-center justify-center h-8 w-8 rounded-lg
-          text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/60 transition-colors"
+      <HoverCard
+        side="bottom"
+        align="center"
+        openDelay={200}
+        content={
+          <span className="text-xs font-medium text-foreground px-0.5">Refresh data</span>
+        }
       >
-        <RefreshCwIcon className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} strokeWidth={2.25} />
-        <span className="sr-only">Refresh data</span>
-      </button>
+        <button
+          type="button"
+          onClick={triggerRefresh}
+          className="inline-flex items-center justify-center h-8 w-8 rounded-lg
+            text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/60 transition-colors"
+        >
+          <RefreshCwIcon className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} strokeWidth={2.25} />
+          <span className="sr-only">Refresh data</span>
+        </button>
+      </HoverCard>
 
       <div className="flex-1" />
 
       <ButtonGroup
         label="Dashboard actions"
-        variant="outline"
+        variant="solid"
         size="sm"
         collapseLabels={false}
         style={{
-          "--bg-highlight": "oklch(0.60 0.22 255 / 0.12)",
-          "--bg-highlight-pressed": "oklch(0.60 0.22 255 / 0.22)",
-          "--bg-divider": "oklch(0.60 0.22 255 / 0.18)",
+          background: "var(--brand)",
+          borderColor: "var(--brand)",
+          color: "white",
+          "--bg-highlight": "color-mix(in oklch, var(--brand) 85%, black)",
+          "--bg-highlight-pressed": "color-mix(in oklch, var(--brand) 72%, black)",
+          "--bg-divider": "rgba(255,255,255,0.28)",
+          "--bg-muted-ink": "rgba(255,255,255,0.9)",
         } as React.CSSProperties}
         items={[
           {
