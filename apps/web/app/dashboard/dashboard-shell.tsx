@@ -7,7 +7,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { DashboardTopbar } from "@/components/dashboard-topbar";
 import { CanvasFab } from "@/components/canvas-fab";
 import { ToastHost, type ToastMessage } from "@/components/toast-host";
-import { DashboardSandbox } from "@/app/playground/dashboard-sandbox";
+import { DashboardCanvas } from "@/components/dashboard-canvas";
 import { DashboardSheetFrame } from "@/components/dashboard-sheet-frame";
 import {
   SidebarInset, SidebarProvider,
@@ -39,9 +39,7 @@ export function DashboardShell({ user, initialName = "Untitled dashboard" }: {
           onSave={() => notify("Dashboard saved", `"${dashboardName}" is up to date`)}
         />
         <DashboardSheetFrame zoom={zoom} onZoomChange={setZoom}>
-          <div className="flex flex-row h-full w-full">
-            <DashboardSandbox hidePicker />
-          </div>
+          <DashboardCanvas />
         </DashboardSheetFrame>
         <CanvasFab zoom={zoom} onZoomChange={setZoom} />
       </SidebarInset>

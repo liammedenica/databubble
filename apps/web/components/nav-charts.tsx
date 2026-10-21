@@ -90,9 +90,6 @@ export function NavCharts() {
                         onDragEnd={() => {
                           window.dispatchEvent(new Event("sandbox-drag-end"));
                         }}
-                        onClick={() => {
-                          window.dispatchEvent(new CustomEvent("sandbox-add-chart", { detail: { type } }));
-                        }}
                         className="group/row flex items-center gap-2 pl-2 pr-2 h-7 rounded-md cursor-grab active:cursor-grabbing
                           select-none text-sm font-medium text-muted-foreground hover:text-sidebar-foreground
                           hover:bg-sidebar-accent/70 transition-colors"
