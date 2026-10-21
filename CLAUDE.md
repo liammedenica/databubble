@@ -21,10 +21,15 @@ packages/ui/       Shared components (@workspace/ui/*)
 |------|---------|
 | `apps/web/app/page.tsx` | Landing page — hero, pricing, features, auth modal, create dialog |
 | `apps/web/app/dashboard/page.tsx` | Server component — fetches user, renders `<DashboardShell>` |
-| `apps/web/app/dashboard/dashboard-shell.tsx` | Client wrapper — SidebarProvider + AppSidebar + topbar + sheet frame + sandbox + FAB + toast host |
+| `apps/web/app/dashboard/dashboard-shell.tsx` | Client wrapper — SidebarProvider + AppSidebar + topbar + sheet frame + `<DashboardCanvas />` + FAB + toast host |
 | `apps/web/app/dashboards/page.tsx` | My Dashboards — card grid with mini SVG chart previews, share settings |
 | `apps/web/app/account/page.tsx` | Account — avatar color picker, name edit, AI usage bar, delete account |
-| `apps/web/app/playground/dashboard-sandbox.tsx` | **Single source of truth for tile logic.** 10 chart types with full state + render + settings + swap/push/nudge collision. Rendered standalone at /playground; embedded at /dashboard with `hidePicker` |
+| `apps/web/components/dashboard-canvas.tsx` | Thin canvas orchestrator — owns `tiles: Tile[]`, handles sidebar drop, pointer drag with swap/push/nudge, resize via tile handles, right-click context menu |
+| `apps/web/components/tiles/*-tile.tsx` | 10 self-contained tile components. Each owns its own data/config state so multiple instances are independent. Uses demo data from `shared/demo-data.ts` until Google Sheets wiring |
+| `apps/web/components/tiles/registry.ts` | `TILE_REGISTRY[type] = { Component, label, Icon, defaultSize }`. Single source for the canvas to look up a tile |
+| `apps/web/components/tiles/types.ts` | `Tile`, `TileType`, `DEFAULT_SIZE`, `MIN_SIZE`, `CHART_OVERHEAD`, `createTileId()` |
+| `apps/web/components/tiles/shared/collision.ts` | SNAP=20, GAP=16 constants + `overlaps`, `trySwap`, `tryPush`, `findNearestFree`, `snapCeil/Floor` |
+| `apps/web/components/tiles/shared/tile-card.tsx` | Shared `rounded-xl bg-card` chrome; hosts `<ResizeHandles />` when canvas passes `onResizeEdge` |
 | `apps/web/components/dashboard-sheet-frame.tsx` | Grey pannable workspace + fixed 1800×1120 sheet. Owns pan state; zoom controlled by parent via props |
 | `apps/web/components/dashboard-topbar.tsx` | Breadcrumb + InlineEdit name + refresh + Share/Save ButtonGroup + ThemeSwitch |
 | `apps/web/components/canvas-fab.tsx` | Floating button group bottom-right — zoom −/%/+ + Ask AI (chat shell) |
@@ -32,7 +37,7 @@ packages/ui/       Shared components (@workspace/ui/*)
 | `apps/web/components/app-sidebar.tsx` | Dashboard sidebar — brand wordmark + Recent + Charts (drag + click adds to canvas) + Data + user. Minimalist aesthetic — no tone chips, muted icons, soft blue indent line on open groups |
 | `apps/web/components/brand-header.tsx` | Centered "DataBubble" wordmark in brand blue; collapses to "DB" when sidebar is in icon mode |
 | `apps/web/components/theme-provider.tsx` | Lightweight local provider replacing next-themes. Exports `useTheme` with `{ theme, resolvedTheme, setTheme }`. FOUC-prevention script lives in server-rendered `<head>` of `app/layout.tsx` |
-| `apps/web/components/nav-charts.tsx` | Chart picker rows: `onDragStart` + `onClick` both dispatch `sandbox-add-chart` window event |
+| `apps/web/components/nav-charts.tsx` | Chart picker rows — drag-only (click-to-add was removed 2026-10-20). Fires `sandbox-drag-start/end` window events |
 | `apps/web/components/user-menu.tsx` | Shared UserMenu — hover dropdown, avatar, theme toggle, nav links, sign out |
 | `apps/web/components/create-dashboard-dialog.tsx` | Shared create dialog — used on landing + dashboards pages |
 | `apps/web/components/arc/*` | uiarc components (shadcn registry): charts, inline-edit, button-group, floating-button-group, breadcrumb, theme-switch, toast, tooltip, hover-card, expanding-search |
@@ -40,17 +45,30 @@ packages/ui/       Shared components (@workspace/ui/*)
 | `apps/web/lib/analyze.ts` | Column type detection (`date / number / category / text / id`) |
 | `apps/web/lib/palettes.ts` | 6 color palettes (Violet default) + `buildCustomPalette` |
 
-## Dashboard canvas architecture (as of 2026-10-16)
+## Dashboard canvas architecture (as of 2026-10-20)
 
-The `/dashboard` middle area is a **pannable grey workspace with a fixed-size sheet floating in it**. The sheet embeds the `/playground` sandbox for all tile behaviour — don't rebuild per-tile components from scratch; always extract/embed.
+The `/dashboard` middle area is a **pannable grey workspace with a fixed-size sheet floating in it**. The sheet hosts `<DashboardCanvas />` — a thin orchestrator over per-tile components.
 
-- `<DashboardSheetFrame zoom onZoomChange>` — grey dot-grid workspace, 1800×1120 sheet centered. Pan via middle-click or empty-drag; zoom via Ctrl/⌘+scroll (cursor-anchored) or the FAB `−/%/+` controls. **Default zoom 0.7 is honoured regardless of window size** (no auto-fit shrink). Reset view returns to 0.7 with a grow+fade+slide-in entrance.
-- `<DashboardSandbox hidePicker />` — the embedded sandbox. `hidePicker` collapses its own left picker; the dashboard's app sidebar is the chart picker instead. The sandbox owns drop handling directly — dashboard-shell is now a thin wrapper with no drop handler.
-- `nav-charts.tsx` rows dispatch `sandbox-drag-start { type }` on `onDragStart`, `sandbox-drag-end` on `onDragEnd`, and `sandbox-add-chart { type }` on click. Drop position comes from the sandbox stage's own `onDrop`.
-- **Drop preview**: dashed-blue ghost rectangle inside the stage, sized by `DROP_SIZES[type]`, with a chip in the corner showing the type + dims. Cursor-relative position computed scale-aware via `rect.width / stage.clientWidth`.
-- `addChart(id, dropAt?)` accepts an optional `{ x, y }` and centers the tile on the cursor, clamped to stage bounds. Click (no dropAt) still uses `INITIAL_POSITIONS`.
-- Sandbox stage is sized to the sheet exactly when embedded (no 1620px minimum), overflow-hidden, and **drag release is clamped to stage bounds** via `clampToStage`.
-- One instance per chart type on canvas (sandbox's state hooks are shared per type). Splitting into per-tile components is a multi-day refactor — only do it if users explicitly ask for multiple instances of the same type.
+- `<DashboardSheetFrame zoom onZoomChange>` — grey dot-grid workspace, 1800×1120 sheet centered. Pan via middle-click or empty-drag; zoom via Ctrl/⌘+scroll (cursor-anchored) or the FAB `−/%/+` controls. Default zoom 0.7 is honoured regardless of window size. Reset returns to 0.7 with a grow+fade+slide-in entrance.
+- `<DashboardCanvas />` — owns `tiles: Tile[]` with unique ids so multiple instances of a chart type coexist. All rendering is delegated to `components/tiles/*-tile.tsx` via `TILE_REGISTRY`.
+- `nav-charts.tsx` rows fire `sandbox-drag-start { type }` on `onDragStart` and `sandbox-drag-end` on `onDragEnd`. **No click-to-add** — drag only. Drop target is the canvas's native `onDrop`.
+- **Drop preview**: dashed-blue ghost rectangle sized by `DEFAULT_SIZE[type]` in `types.ts`, with a chip showing the type + dims. Cursor-relative position computed scale-aware.
+- On drop, `addTile(type, cursorX, cursorY)` → `findNearestFree` picks a non-overlapping snapped spot. Centered on the cursor, clamped to stage.
+- **Each tile** = `<Tile>` object `{ id, type, x, y, w, h }`. Its component (`LineTile`, `BarTile`, ...) takes `width, height, onResizeEdge?` and renders inside `<TileCard />` chrome (except `MetricTile`, which uses `MetricCard`'s own styling). Config/data state lives in the tile component via its own `useState` — currently all demo data from `shared/demo-data.ts`.
+
+### Interaction model
+
+- **Drag**: pointer down on the tile → pointerup resolves overlaps via **swap → push → nudge** (`collision.ts`).
+- **Resize**: hover a tile → E/S/SE handles appear. Pointer-based resize updates `tile.w/h`. Width-only on `metric | gauge | waffle | heatmap | donut` (they pass `heightResize={false}` to `TileCard`). `CHART_OVERHEAD[type]` subtracts chrome padding when computing chart height.
+- **Right-click**: opens floating context menu with Bring to front / Send to back / Delete. Footer: "Full settings coming soon" — per-tile settings panels are the next milestone.
+
+### Adding a new chart type
+
+1. Write `apps/web/components/tiles/<name>-tile.tsx` — self-contained, uses `TileCard`, owns its own state.
+2. Add an entry to `TILE_REGISTRY` in `tiles/registry.ts`.
+3. Add `DEFAULT_SIZE[name]`, `MIN_SIZE[name]`, `CHART_OVERHEAD[name]` in `tiles/types.ts`.
+4. Add the chart to `nav-charts.tsx` groups + the `ChartType` union.
+No changes to `dashboard-canvas.tsx` needed.
 
 ### Canvas FAB (components/canvas-fab.tsx)
 - Floating button-group bottom-right: zoom −, zoom %, zoom +, separator, Ask AI.
@@ -74,7 +92,7 @@ The `/dashboard` middle area is a **pannable grey workspace with a fixed-size sh
 
 **Dark mode**: CSS variable dark mode. Chart colors use the `theme` object in `ChartConfig` to set different shades per mode — `light: "oklch(0.371 0 0)"` / `dark: "oklch(0.87 0 0)"` — because `--chart-1` is a light grey in both modes and invisible against a light card background.
 
-**Tile grid is inside the sandbox** (`app/playground/dashboard-sandbox.tsx`). The old `components/dashboard-grid.tsx` and its `computeCascade` / `push` system were deleted when `/dashboard` was rewritten to embed the sandbox. SNAP = 20px, GAP = 16px inside the sandbox. Collision follows the swap → push → nudge ladder (`trySwap` for ≥50% overlap on similar-sized tiles, `tryPush` with `snapCeil`/`snapFloor` for minimum displacement, `findNearestFree` ring-expansion as fallback). Auto-compact runs via a `ResizeObserver` debounced 120ms and only pushes neighbours DOWN on growth — never pulls up on shrink.
+**Tile orchestration lives in `components/dashboard-canvas.tsx`** (not inside the tiles themselves). SNAP = 20px, GAP = 16px in `components/tiles/shared/collision.ts`. Collision follows the swap → push → nudge ladder (`trySwap` for ≥50% overlap on similar-sized tiles, `tryPush` with `snapCeil`/`snapFloor` for minimum displacement, `findNearestFree` ring-expansion as fallback). Push currently only runs on `pointerup` — live push during drag is a known gap. The old `components/dashboard-grid.tsx` and the `/playground` sandbox were deleted when the tile model shipped (2026-10-20).
 
 **Sidebar drag events (dashboard chart picker)**:
 - `onDragStart`: `dataTransfer.setData("application/x-databubble-tile", type)` + `window.dispatchEvent(new CustomEvent("sandbox-drag-start", { detail: { type } }))` so the sandbox can show its drop-preview ghost at the cursor.
