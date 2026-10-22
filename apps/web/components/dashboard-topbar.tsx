@@ -18,12 +18,18 @@ export function DashboardTopbar({
   onRefresh,
   onShare,
   onSave,
+  refreshSignal = 0,
+  saveSignal = 0,
 }: {
   name: string;
   onRename: (next: string) => void;
   onRefresh?: () => void;
   onShare?: () => void;
   onSave?: () => void;
+  /** Monotonically-increasing counter — bump to trigger the refresh spin from outside (e.g. Ctrl+R). */
+  refreshSignal?: number;
+  /** Monotonically-increasing counter — bump to trigger the save "Saved" state from outside (e.g. Ctrl+S). */
+  saveSignal?: number;
 }) {
   const { resolvedTheme, setTheme } = useTheme();
   const [themeMounted, setThemeMounted] = useState(false);
@@ -37,6 +43,14 @@ export function DashboardTopbar({
     onRefresh?.();
     window.setTimeout(() => setRefreshing(false), 600);
   };
+
+  // External triggers (e.g. keybinds) — bump counter in parent and we react here.
+  useEffect(() => {
+    if (!refreshSignal) return;
+    setRefreshing(true);
+    const t = window.setTimeout(() => setRefreshing(false), 600);
+    return () => window.clearTimeout(t);
+  }, [refreshSignal]);
 
   const [sharedAt, setSharedAt] = useState(0);
   const [savedAt, setSavedAt] = useState(0);
@@ -59,6 +73,12 @@ export function DashboardTopbar({
     const t = window.setTimeout(() => setSavedAt(0), 1700);
     return () => window.clearTimeout(t);
   }, [savedAt]);
+
+  // External save trigger — show the "Saved" state when the keybind fires.
+  useEffect(() => {
+    if (!saveSignal) return;
+    setSavedAt(Date.now());
+  }, [saveSignal]);
 
   const handleShare = () => { setSharedAt(Date.now()); onShare?.(); };
   const handleSave  = () => { setSavedAt(Date.now());  onSave?.();  };
@@ -111,16 +131,31 @@ export function DashboardTopbar({
         align="center"
         openDelay={200}
         content={
-          <span className="text-xs font-medium text-foreground px-0.5">Refresh data</span>
+          <span className="inline-flex items-center gap-4 text-xs font-medium text-foreground px-0.5 whitespace-nowrap">
+            Refresh data
+            <span className="flex items-center gap-1">
+              <kbd className="inline-flex items-center justify-center h-5 min-w-[1.25rem] px-1.5
+                rounded border border-brand/25 bg-brand/10 text-[10px] font-semibold text-brand">Ctrl</kbd>
+              <kbd className="inline-flex items-center justify-center h-5 min-w-[1.25rem] px-1.5
+                rounded border border-brand/25 bg-brand/10 text-[10px] font-semibold text-brand">R</kbd>
+            </span>
+          </span>
         }
       >
         <button
           type="button"
           onClick={triggerRefresh}
-          className="inline-flex items-center justify-center h-8 w-8 rounded-lg
-            text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/60 transition-colors"
+          className="group inline-flex items-center justify-center size-7 rounded-md
+            text-muted-foreground
+            hover:text-brand hover:bg-brand/10
+            active:scale-95
+            transition-all duration-150 ease-out"
         >
-          <RefreshCwIcon className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} strokeWidth={2.25} />
+          <RefreshCwIcon
+            className={`w-3.5 h-3.5 transition-transform duration-300 ease-out
+              ${refreshing ? "animate-spin" : "group-hover:-rotate-45"}`}
+            strokeWidth={2.5}
+          />
           <span className="sr-only">Refresh data</span>
         </button>
       </HoverCard>

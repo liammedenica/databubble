@@ -147,13 +147,14 @@ export function DashboardSheetFrame({
 }
 
 const SHORTCUTS: { keys: string[]; label: string }[] = [
-  { keys: ["Drag"],         label: "Pan canvas" },
+  { keys: ["Drag"],           label: "Pan canvas" },
   { keys: ["Ctrl", "Scroll"], label: "Zoom" },
-  { keys: ["Ctrl", "S"],    label: "Save" },
-  { keys: ["Ctrl", "Z"],    label: "Undo" },
-  { keys: ["Ctrl", "C"],    label: "Copy tile" },
-  { keys: ["Ctrl", "V"],    label: "Paste tile" },
-  { keys: ["D"],            label: "Toggle theme" },
+  { keys: ["Ctrl", "S"],      label: "Save" },
+  { keys: ["Ctrl", "R"],      label: "Refresh data" },
+  { keys: ["Ctrl", "Z"],      label: "Undo" },
+  { keys: ["Ctrl", "C"],      label: "Copy tile" },
+  { keys: ["Ctrl", "V"],      label: "Paste tile" },
+  { keys: ["D"],              label: "Toggle theme" },
 ];
 
 function ShortcutsHint() {
@@ -164,13 +165,13 @@ function ShortcutsHint() {
         align="start"
         openDelay={120}
         content={
-          <div className="w-60">
+          <div>
             <p className="text-[10px] font-semibold uppercase tracking-widest text-brand/80 mb-3">
               Shortcuts
             </p>
             <ul className="space-y-1.5">
               {SHORTCUTS.map(s => (
-                <li key={s.label} className="flex items-center justify-between gap-3 text-xs">
+                <li key={s.label} className="flex items-center justify-between gap-12 text-xs">
                   <span className="text-foreground/80 font-medium">{s.label}</span>
                   <span className="flex items-center gap-1 shrink-0">
                     {s.keys.map((k, i) => (

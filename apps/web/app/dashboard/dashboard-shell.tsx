@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -21,8 +21,44 @@ export function DashboardShell({ user, initialName = "Untitled dashboard" }: {
   const [dashboardName, setDashboardName] = useState(initialName);
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [zoom, setZoom] = useState(0.7);
-  const notify = (title: string, description?: string) =>
-    setToast({ id: Date.now(), title, description });
+  const [refreshSignal, setRefreshSignal] = useState(0);
+  const [saveSignal, setSaveSignal] = useState(0);
+  const notify = useCallback((title: string, description?: string) =>
+    setToast({ id: Date.now(), title, description }), []);
+
+  // Latest-name ref so the keybind handler (registered once) always reads current state.
+  const nameRef = useRef(dashboardName);
+  useEffect(() => { nameRef.current = dashboardName; }, [dashboardName]);
+
+  const handleRefresh = useCallback(() => {
+    router.refresh();
+    notify("Data refreshed");
+  }, [router, notify]);
+  const handleSave = useCallback(() => {
+    notify("Dashboard saved", `"${nameRef.current}" is up to date`);
+  }, [notify]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const mod = e.ctrlKey || e.metaKey;
+      if (!mod || e.altKey || e.shiftKey) return;
+      // Skip when typing in editable fields so the user can still save/select in inputs.
+      const t = e.target as HTMLElement | null;
+      if (t?.closest("input, textarea, select, [contenteditable=''], [contenteditable='true']")) return;
+      const key = e.key.toLowerCase();
+      if (key === "s") {
+        e.preventDefault();
+        setSaveSignal(n => n + 1);
+        handleSave();
+      } else if (key === "r") {
+        e.preventDefault();
+        setRefreshSignal(n => n + 1);
+        handleRefresh();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [handleRefresh, handleSave]);
 
   return (
     <SidebarProvider style={{
@@ -34,9 +70,11 @@ export function DashboardShell({ user, initialName = "Untitled dashboard" }: {
         <DashboardTopbar
           name={dashboardName}
           onRename={setDashboardName}
-          onRefresh={() => { router.refresh(); notify("Data refreshed"); }}
+          onRefresh={handleRefresh}
           onShare={() => notify("Link copied", "Anyone with the link can view this dashboard")}
-          onSave={() => notify("Dashboard saved", `"${dashboardName}" is up to date`)}
+          onSave={handleSave}
+          refreshSignal={refreshSignal}
+          saveSignal={saveSignal}
         />
         <DashboardSheetFrame zoom={zoom} onZoomChange={setZoom}>
           <DashboardCanvas />
